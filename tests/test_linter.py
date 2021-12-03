@@ -129,6 +129,16 @@ CASES = {
             'ascii_lookalike': "'89'",
         },
     ],
+    "'\N{HEBREW LETTER ALEF}' * 1_9 + '\N{HEBREW LETTER ALEF}'": [
+        {'name': 'NonASCII', 'string': "'\N{HEBREW LETTER ALEF}'"},
+        {
+            'name': 'ReorderedToken',
+            'string': "1_9",
+            'reordered': "9_1",
+            'token_type': 'number',
+        },
+        {'name': 'NonASCII', 'string': "'\N{HEBREW LETTER ALEF}'"},
+    ],
 }
 
 @pytest.mark.parametrize('source', CASES)

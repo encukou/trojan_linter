@@ -31,12 +31,16 @@ static PyObject *
 process_source(PyObject *module, PyObject *buf) {
     PyObject *retval = NULL;
     PyObject *result = NULL;
+    PyObject *bidimap_bytes = NULL;
     UChar *u_buf = NULL;
+    int32_t *bidimap_source = NULL;
+    UBiDi *bidi = NULL;
     int res;
     if (!PyUnicode_Check(buf)) {
         PyErr_SetString(PyExc_TypeError, "buf must be a string");
         goto finally;
     }
+    Py_ssize_t num_codepoints = PyUnicode_GetLength(buf);
     result = PyList_New(0);
     if (!result) goto finally;
 
@@ -77,11 +81,46 @@ process_source(PyObject *module, PyObject *buf) {
         }
     }
 
+    // Build the BIDI map
+    bidi = ubidi_open();
+    if (!bidi) {
+        PyErr_NoMemory();
+        goto finally;
+    }
+    ubidi_setPara(bidi, u_buf, u_size, UBIDI_DEFAULT_LTR, NULL, &err);
+    if (raise_icu_error(err)) goto finally;
+    if (ubidi_getDirection(bidi) != UBIDI_LTR) {
+        // XXX this allocates lots of memory: ~8 bytes for each char
+        // First. 4B per UTF-16 char for ICU to work with
+        bidimap_source = PyMem_Malloc(u_size * sizeof(int32_t));
+        if (!bidimap_source) goto finally;
+        // Then. 4B per Unicode codepoint for Python-compatible indexing
+        // (a Python bytes object is abused for the storage)
+        bidimap_bytes = PyBytes_FromStringAndSize(
+            NULL, num_codepoints * sizeof(int32_t));
+        if (!bidimap_bytes) goto finally;
+        int32_t *bidimap = (int32_t *)PyBytes_AsString(bidimap_bytes);
+        if (!bidimap) goto finally;
+        // Perform the BIDI algorithm & get the logical map
+        ubidi_getLogicalMap(bidi, bidimap_source, &err);
+        if (raise_icu_error(err)) goto finally;
+        // Copy to the Python-compatible buffer
+        for (int32_t u_pos=0, index=0; u_pos < u_size; /*U16_NEXT, */ index++ ) {
+            assert(index < num_codepoints);
+            bidimap[index] = bidimap_source[u_pos];
+            U16_NEXT(u_buf, u_pos, u_buf, c);
+        }
+        assert(index == num_codepoints);
+    }
 
-    retval = Py_BuildValue("OO", result, Py_None);
+    retval = Py_BuildValue(
+        "OO", result, bidimap_bytes ? bidimap_bytes : Py_None);
 finally:
     Py_XDECREF(result);
+    Py_XDECREF(bidimap_bytes);
     PyMem_Free(u_buf);
+    PyMem_Free(bidimap_source);
+    if (bidi) ubidi_close(bidi);
     return retval;
 }
 

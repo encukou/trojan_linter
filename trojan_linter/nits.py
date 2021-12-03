@@ -21,3 +21,11 @@ class NonASCII(Nit):
         self.token_type = token.type
         self.string = token.string
         self.ascii_lookalike = ascii_lookalike
+
+class ReorderedToken(Nit):
+    def __init__(self, source, linemap, token, reordered):
+        super().__init__(source, linemap, token.start_index)
+        self.token = token
+        self.token_type = token.type
+        self.string = token.string
+        self.reordered = reordered
