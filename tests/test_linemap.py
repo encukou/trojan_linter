@@ -1,3 +1,5 @@
+import io
+
 from hypothesis import given
 from hypothesis.strategies import text, integers, characters
 
@@ -16,7 +18,7 @@ def test_properties(source, index):
     assert linemap.row_col_to_index(row, col) == index
 
     # indexing by index should yield same value as by row/col
-    assert char == source.splitlines(keepends=True)[row-1][col]
+    assert char == list(io.StringIO(source))[row-1][col]
 
 
 @given(text(characters()))
@@ -26,6 +28,6 @@ def test_past_end(source):
     row, col = linemap.index_to_row_col(index)
     print(index, row, col, repr(source), linemap.line_starts)
 
-    rows = source.splitlines(keepends=True)
+    rows = list(io.StringIO(source))
     assert row == len(rows) + 1
     assert col == 0

@@ -2,6 +2,7 @@ import tokenize as py_tokenize
 import token as token_info
 import dataclasses
 import difflib
+import io
 
 LineAndColumn = tuple[int, int]
 
@@ -30,10 +31,8 @@ TOKEN_TYPE_MAP = {
 }
 
 def generate_tokens(source):
-    lines = source.splitlines(keepends=True)
-    readline = iter(lines).__next__
     try:
-        yield from py_tokenize.generate_tokens(readline)
+        yield from py_tokenize.generate_tokens(io.StringIO(source).readline)
     except py_tokenize.TokenError:
         raise SyntaxError('tokenizer failed')
 

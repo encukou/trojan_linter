@@ -1,6 +1,7 @@
 from bisect import bisect_right
 import unicodedata
 import re
+import io
 
 from . import nits
 from . import _linter as c_linter
@@ -14,10 +15,9 @@ class LineMap:
     """Maps text indices to (line, column) pairs and vice versa"""
 
     def __init__(self, source):
-        lines = source.splitlines(keepends=True)
         self.line_starts = []
         current_pos = 0
-        for line in lines:
+        for line in io.StringIO(source):
             self.line_starts.append(current_pos)
             current_pos += len(line)
         self.line_starts.append(current_pos)
