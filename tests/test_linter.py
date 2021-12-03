@@ -83,12 +83,50 @@ CASES = {
             'ascii_lookalike': 'scope',
         },
     ],
+    'u"s\N{CYRILLIC SMALL LETTER ES}ope"': [
+        {
+            'name': 'NonASCII',
+            'string': 'u"s\N{CYRILLIC SMALL LETTER ES}ope"',
+            'token_type': 'string',
+            'ascii_lookalike': 'u"scope"',
+        },
+    ],
     '\N{CYRILLIC CAPITAL LETTER ZHE}ohn': [
         {
             'name': 'NonASCII',
             'string': '\N{CYRILLIC CAPITAL LETTER ZHE}ohn',
             'token_type': 'name',
             'ascii_lookalike': None,
+        },
+    ],
+    "names = 'x\u02BB, \u02BBy' ": [
+        {
+            'name': 'NonASCII',
+            'string': "'x\u02BB, \u02BBy'",
+            'token_type': 'string',
+            'ascii_lookalike': "'x', 'y'",
+        },
+    ],
+    "names = 'x\u02BB', '\u02BBy' ": [
+        {
+            'name': 'NonASCII',
+            'string': "'x\u02BB'",
+            'token_type': 'string',
+            'ascii_lookalike': "'x''",
+        },
+        {
+            'name': 'NonASCII',
+            'string': "'\u02BBy'",
+            'token_type': 'string',
+            'ascii_lookalike': "''y'",
+        },
+    ],
+    "int('৪୨')": [
+        {
+            'name': 'NonASCII',
+            'string': "'৪୨'",
+            'token_type': 'string',
+            'ascii_lookalike': "'89'",
         },
     ],
 }
