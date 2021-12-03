@@ -39,7 +39,7 @@ def test_control_chars(text, pos, control):
             compile(text, 'test', 'exec')
         assume(False)
     print(nits)
-    assert len(nits) == 1
+    assert len(nits) >= 1
     nit = nits[0]
     assert isinstance(nit, ControlChar)
     assert nit.index == pos
@@ -55,8 +55,8 @@ def test_control_chars(text, pos, control):
 def test_all_control_chars(text):
     nits = list(lint_text('test', text, tokenize))
     print(nits)
-    assert len(nits) == len(text)
-    for nit in nits:
+    assert len(nits) >= len(text)
+    for nit in nits[:len(text)]:
         assert isinstance(nit, ControlChar)
 
 
@@ -77,10 +77,18 @@ def test_surrogates(text, pos, control):
 CASES = {
     's\N{CYRILLIC SMALL LETTER ES}ope': [
         {
-            'name': 'NonAscii',
-            'string': 'sc\N{CYRILLIC SMALL LETTER ES}pe',
-            'token': 'name',
-            'ascii_lookalike': 'scope'
+            'name': 'NonASCII',
+            'string': 's\N{CYRILLIC SMALL LETTER ES}ope',
+            'token_type': 'name',
+            'ascii_lookalike': 'scope',
+        },
+    ],
+    '\N{CYRILLIC CAPITAL LETTER ZHE}ohn': [
+        {
+            'name': 'NonASCII',
+            'string': '\N{CYRILLIC CAPITAL LETTER ZHE}ohn',
+            'token_type': 'name',
+            'ascii_lookalike': None,
         },
     ],
 }
@@ -91,6 +99,6 @@ def test_cases(source):
     nits = list(lint_text('test', source, tokenize))
     print(nits)
     assert len(nits) == len(expected)
-    for nit, exp in zip(source, expected):
-        for attr, value in expected.items():
-            assert getattr(nit, name) == value
+    for nit, exp in zip(nits, expected):
+        for attr, value in exp.items():
+            assert getattr(nit, attr) == value

@@ -1,8 +1,10 @@
 from bisect import bisect_right
+import unicodedata
 import re
 
 from . import nits
 from . import _linter as c_linter
+from .confusables import ascii_confusable_map
 
 ALLOWED_CONTROL_CHARS = '\t\n\v\f\r'
 ASCII_CONTROL_RE = re.compile(r'[\0-\x08\x0E-\x1F\x7F]')
@@ -51,4 +53,10 @@ def lint_text(name, text, tokenizer):
         yield getattr(nits, name)(text, linemap, *args)
 
     for token in tokenizer(text, linemap):
-        print(token)
+        if not token.string.isascii():
+            ascii_lookalike = None
+            in_nfd = unicodedata.normalize('NFD', token.string)
+            mapped = in_nfd.translate(ascii_confusable_map)
+            if mapped.isascii():
+                ascii_lookalike = mapped
+            yield nits.NonASCII(text, _get_linemap(), token, ascii_lookalike)
