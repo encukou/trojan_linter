@@ -3,6 +3,7 @@
 #include "unicode/ubidi.h"
 
 #define ALLOWED_CONTROL_CHARS "\t\n\v\f\r"
+#define INTERNAL_ERROR_NOTE "trojan_linter internal error: "
 
 char allowed_control_lut[128] = {0}; // filled in mod_exec
 
@@ -14,6 +15,7 @@ raise_icu_error(UErrorCode err) {
     }
     return 0;
 }
+
 static int
 append_nit_args(PyObject *list, char *format, ...) {
     va_list vl;
@@ -105,16 +107,31 @@ process_source(PyObject *module, PyObject *buf) {
         ubidi_getLogicalMap(bidi, bidimap_source, &err);
         if (raise_icu_error(err)) goto finally;
         // Copy to the Python-compatible buffer
-        for (int32_t u_pos=0, index=0; u_pos < u_size; /*U16_NEXT, */ index++ ) {
-            assert(index < num_codepoints);
+        int index = 0;
+        for (int32_t u_pos=0; u_pos < u_size; /*U16_NEXT, */ index++ ) {
+            if (index >= num_codepoints) {
+                PyErr_Format(
+                    PyExc_SystemError,
+                    INTERNAL_ERROR_NOTE "too many codepoints");
+                goto finally;
+            }
             bidimap[index] = bidimap_source[u_pos];
             U16_NEXT(u_buf, u_pos, u_buf, c);
         }
-        assert(index == num_codepoints);
+        if (index != num_codepoints) {
+            PyErr_Format(
+                PyExc_SystemError,
+                INTERNAL_ERROR_NOTE "codepoint number mismatch %li != %li",
+                (long)index,
+                (long)num_codepoints);
+            goto finally;
+        }
     }
 
     retval = Py_BuildValue(
-        "OO", result, bidimap_bytes ? bidimap_bytes : Py_None);
+        "OO",
+        result,
+        bidimap_bytes ? bidimap_bytes : Py_None);
 finally:
     Py_XDECREF(result);
     Py_XDECREF(bidimap_bytes);
@@ -128,13 +145,23 @@ finally:
 static int mod_exec(PyObject *module) {
     PyModule_AddStringMacro(module, ALLOWED_CONTROL_CHARS);
     // allow exceptions
-    for (char *s=ALLOWED_CONTROL_CHARS; *s; s++) {
-        assert(*s < sizeof(allowed_ascii_control_lut));
+    for (unsigned char *s=(unsigned char*)ALLOWED_CONTROL_CHARS; *s; s++) {
+        if (*s >= sizeof(allowed_control_lut)) {
+            PyErr_Format(
+                PyExc_SystemError,
+                INTERNAL_ERROR_NOTE "LUT too small for allowed control");
+            return 1;
+        }
         allowed_control_lut[(int)*s] = 1;
     }
     // allow non-controls
-    for (int c=32; c<127; c++) {
-        assert(c < sizeof(allowed_control_lut));
+    for (unsigned int c=32; c<127; c++) {
+        if (c >= sizeof(allowed_control_lut)) {
+            PyErr_Format(
+                PyExc_SystemError,
+                INTERNAL_ERROR_NOTE "LUT too small for non-control");
+            return 1;
+        }
         allowed_control_lut[c] = 1;
     }
     return 0;
