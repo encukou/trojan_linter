@@ -1,4 +1,12 @@
 from bisect import bisect_right
+import re
+import unicodedata
+
+from . import nits
+
+ALLOWED_CONTROL_CHARS = '\t\n\v\f\r'
+ASCII_CONTROL_RE = re.compile(r'[\0-\x08\x0E-\x1F\x7F]')
+
 
 class LineMap:
     """Maps text indices to (line, column) pairs and vice versa"""
@@ -21,3 +29,21 @@ class LineMap:
     def row_col_to_index(self, row, col):
         line_start = self.line_starts[row - 1]
         return line_start + col
+
+
+def lint_text(name, text):
+    linemap = None
+    def _get_linemap():
+        nonlocal linemap
+        if linemap is None:
+            linemap = LineMap(text)
+            return linemap
+
+    if text.isascii():
+        for match in ASCII_CONTROL_RE.finditer(text):
+            yield nits.ControlChar(text, _get_linemap(), match.start())
+        return
+
+    for index, char in enumerate(text):
+        if unicodedata.category(char).startswith('C') and char not in ALLOWED_CONTROL_CHARS:
+            yield nits.ControlChar(text, _get_linemap(), index)
