@@ -18,20 +18,19 @@ class LineMap:
         for line in lines:
             self.line_starts.append(current_pos)
             current_pos += len(line)
-        if not lines:
-            self.line_starts.append(current_pos)
+        self.line_starts.append(current_pos)
 
     def index_to_row_col(self, index):
         lineno = bisect_right(self.line_starts, index)
         line_start = self.line_starts[lineno - 1]
-        return lineno, index - line_start + 1
+        return lineno, index - line_start
 
     def row_col_to_index(self, row, col):
         line_start = self.line_starts[row - 1]
-        return line_start + col - 1
+        return line_start + col
 
 
-def lint_text(name, text):
+def lint_text(name, text, tokenizer):
     linemap = None
     def _get_linemap():
         nonlocal linemap
@@ -40,11 +39,16 @@ def lint_text(name, text):
         return linemap
 
     if text.isascii():
+        # Only handle control chars
         for match in ASCII_CONTROL_RE.finditer(text):
             yield nits.ControlChar(text, _get_linemap(), match.start())
         return
 
-    nit_tuples, bidimap = c_linter.process_source(text)
+    linemap = _get_linemap()
 
+    nit_tuples, bidimap = c_linter.process_source(text)
     for name, *args in nit_tuples:
-        yield getattr(nits, name)(text, _get_linemap(), *args)
+        yield getattr(nits, name)(text, linemap, *args)
+
+    for token in tokenizer(text, linemap):
+        print(token)

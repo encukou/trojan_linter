@@ -16,7 +16,7 @@ def test_properties(source, index):
     assert linemap.row_col_to_index(row, col) == index
 
     # indexing by index should yield same value as by row/col
-    assert char == source.splitlines(keepends=True)[row-1][col-1]
+    assert char == source.splitlines(keepends=True)[row-1][col]
 
 
 @given(text(characters()))
@@ -26,6 +26,6 @@ def test_past_end(source):
     row, col = linemap.index_to_row_col(index)
     print(index, row, col, repr(source), linemap.line_starts)
 
-    rows = source.splitlines(keepends=True) or ['']
-    assert row == len(rows)
-    assert col == len(rows[-1]) + 1
+    rows = source.splitlines(keepends=True)
+    assert row == len(rows) + 1
+    assert col == 0
