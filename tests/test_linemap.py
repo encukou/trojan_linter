@@ -1,7 +1,7 @@
-from trojan_linter.linter import LineMap
-
 from hypothesis import given
 from hypothesis.strategies import text, integers, characters
+
+from trojan_linter.linter import LineMap
 
 
 @given(text(characters(), min_size=1), integers(0))
@@ -16,7 +16,7 @@ def test_properties(source, index):
     assert linemap.row_col_to_index(row, col) == index
 
     # indexing by index should yield same value as by row/col
-    assert char == source.splitlines(keepends=True)[row-1][col]
+    assert char == source.splitlines(keepends=True)[row-1][col-1]
 
 
 @given(text(characters()))
@@ -28,4 +28,4 @@ def test_past_end(source):
 
     rows = source.splitlines(keepends=True) or ['']
     assert row == len(rows)
-    assert col == len(rows[-1])
+    assert col == len(rows[-1]) + 1
