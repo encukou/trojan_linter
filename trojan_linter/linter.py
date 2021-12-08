@@ -67,11 +67,13 @@ def lint_text(name, text, tokenizer):
     for token in tokenizer(text, linemap):
         if not token.string.isascii():
             ascii_lookalike = None
-            in_nfd = unicodedata.normalize('NFD', token.string)
-            mapped = in_nfd.translate(ascii_confusable_map)
+            nfkc = unicodedata.normalize('NFKC', token.string)
+            nfd = unicodedata.normalize('NFD', token.string)
+            mapped = nfd.translate(ascii_confusable_map)
             if mapped.isascii():
                 ascii_lookalike = mapped
-            yield nits.NonASCII(text, linemap, token, ascii_lookalike)
+            yield nits.NonASCII(text, linemap, token, ascii_lookalike, nfkc)
+
         if bidi_l2v_map and len(token.string) > 1:
             logical_indices = range(token.start_index, token.start_index+len(token.string))
             visual_indices = [bidi_l2v_map[i] for i in logical_indices]

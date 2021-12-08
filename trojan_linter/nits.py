@@ -30,12 +30,13 @@ class ControlChar(Nit):
     pass
 
 class NonASCII(Nit):
-    def __init__(self, source, linemap, token, ascii_lookalike):
+    def __init__(self, source, linemap, token, ascii_lookalike, nfkc):
         super().__init__(source, linemap, token.start_index)
         self.token = token
         self.token_type = token.type
         self.string = token.string
         self.ascii_lookalike = ascii_lookalike
+        self.nfkc = nfkc
 
 class ReorderedToken(Nit):
     def __init__(self, source, linemap, token, reordered, reordered_char_in_token):

@@ -189,6 +189,18 @@ CASES = {
         },
         {'name': 'NonASCII', 'string': "'\N{HEBREW LETTER ALEF}'"},
     ],
+    "\N{LATIN SMALL LIGATURE FI} = 'u\N{COMBINING DIAERESIS}'": [
+        {
+            'name': 'NonASCII',
+            'string': "\N{LATIN SMALL LIGATURE FI}",
+            'nfkc': "fi",
+        },
+        {
+            'name': 'NonASCII',
+            'string': "'u\N{COMBINING DIAERESIS}'",
+            'nfkc': "'\N{LATIN SMALL LETTER U WITH DIAERESIS}'",
+        },
+    ],
 }
 
 @pytest.mark.parametrize('source', CASES)
