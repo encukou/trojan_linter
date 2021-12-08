@@ -1,4 +1,7 @@
 import unicodedata
+from ast import literal_eval
+from textwrap import dedent
+import re
 
 import pytest
 from hypothesis import given, assume
@@ -6,7 +9,7 @@ from hypothesis.strategies import text, integers, characters, one_of
 from hypothesis.strategies import sampled_from
 
 from trojan_linter.linter import lint_text, LineMap, ALLOWED_CONTROL_CHARS
-from trojan_linter.nits import ControlChar
+from trojan_linter.nits import ControlChar, safe_char_repr
 from trojan_linter.tokenize_python import tokenize
 
 
@@ -129,6 +132,53 @@ CASES = {
             'ascii_lookalike': "'89'",
         },
     ],
+    "'\N{HEBREW LETTER ALEF}\N{HEBREW LETTER GIMEL}'": [
+        {'name': 'NonASCII', 'string': "'\N{HEBREW LETTER ALEF}\N{HEBREW LETTER GIMEL}'"},
+        {
+            'name': 'ReorderedToken',
+            'string': "'\N{HEBREW LETTER ALEF}\N{HEBREW LETTER GIMEL}'",
+            'reordered': "'\N{HEBREW LETTER GIMEL}\N{HEBREW LETTER ALEF}'",
+            'token_type': 'string',
+        },
+    ],
+    """'zz\N{HEBREW LETTER ALEF} -' + '- \N{HEBREW LETTER GIMEL}zz'""": [
+        {'name': 'NonASCII'},
+        {
+            'name': 'ReorderedToken',
+            'string': "'zz\N{HEBREW LETTER ALEF} -'",
+            'reordered_repr': dedent(r"""
+                The token is:
+                    'zz\u05d0 -'
+                but appears as:
+                    'zz\u05d2 -' + '- \u05d0
+                    ^^^            ^^^^^^^^^
+                    (characters without ^ below aren't part of the token)
+                where:
+                    \u05d2 is HEBREW LETTER GIMEL
+                    \u05d0 is HEBREW LETTER ALEF
+            """).strip(),
+            'reordered': "'zz\N{HEBREW LETTER GIMEL} -' + '- \N{HEBREW LETTER ALEF}",
+            'token_type': 'string',
+        },
+        {'name': 'NonASCII'},
+        {
+            'name': 'ReorderedToken',
+            'string': "'- \N{HEBREW LETTER GIMEL}zz'",
+            'reordered_repr': dedent(r"""
+                The token is:
+                    '- \u05d2zz'
+                but appears as:
+                    \u05d2 -' + '- \u05d0zz'
+                    ^^^^^^^^^            ^^^
+                    (characters without ^ below aren't part of the token)
+                where:
+                    \u05d2 is HEBREW LETTER GIMEL
+                    \u05d0 is HEBREW LETTER ALEF
+            """).strip(),
+            'reordered': "\N{HEBREW LETTER GIMEL} -' + '- \N{HEBREW LETTER ALEF}zz'",
+            'token_type': 'string',
+        },
+    ],
     "'\N{HEBREW LETTER ALEF}' * 1_9 + '\N{HEBREW LETTER ALEF}'": [
         {'name': 'NonASCII', 'string': "'\N{HEBREW LETTER ALEF}'"},
         {
@@ -150,3 +200,10 @@ def test_cases(source):
     for nit, exp in zip(nits, expected):
         for attr, value in exp.items():
             assert getattr(nit, attr) == value
+
+
+@given(characters(blacklist_characters="'\\"))
+def test_safe_char_repr(char):
+    result = safe_char_repr(char)
+    assert literal_eval("'" + result + "'") == char
+    assert re.fullmatch(r'[ -~]+', result)

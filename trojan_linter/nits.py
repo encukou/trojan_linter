@@ -1,3 +1,18 @@
+from functools import cached_property
+import unicodedata
+
+
+def safe_char_repr(char):
+    codepoint = ord(char)
+    if 32 <= codepoint < 127:
+        return char
+    if codepoint <= 0xff:
+        return f'\\x{codepoint:02x}'
+    if codepoint <= 0xffff:
+        return f'\\u{codepoint:04x}'
+    return f'\\U{codepoint:08x}'
+
+
 class Nit:
     def __init__(self, source, linemap, index):
         self.source = source
@@ -23,9 +38,40 @@ class NonASCII(Nit):
         self.ascii_lookalike = ascii_lookalike
 
 class ReorderedToken(Nit):
-    def __init__(self, source, linemap, token, reordered):
+    def __init__(self, source, linemap, token, reordered, reordered_char_in_token):
         super().__init__(source, linemap, token.start_index)
         self.token = token
         self.token_type = token.type
         self.string = token.string
         self.reordered = reordered
+        self.reordered_char_in_token = reordered_char_in_token
+
+    @cached_property
+    def reordered_repr(self):
+        lines = [
+            'The token is:',
+            f'    {"".join(safe_char_repr(c) for c in self.string)}',
+            'but appears as:',
+        ]
+        reprs = [safe_char_repr(c) for c in self.reordered]
+        lines.append(f'    {"".join(reprs)}')
+        if not all(self.reordered_char_in_token):
+            lines.append('    ' + ''.join(
+                ('^' if isin else ' ') * len(crepr)
+                for isin, crepr in zip(self.reordered_char_in_token, reprs)
+            ))
+            lines.append("    (characters without ^ below aren't part of the token)")
+        legend = []
+        seen = set()
+        for char, crepr in zip(self.reordered, reprs):
+            try:
+                name = unicodedata.name(char)
+            except ValueError:
+                continue
+            if crepr != char and char not in seen:
+                legend.append(f'    {crepr} is {name}')
+                seen.add(char)
+        if legend:
+            lines.append('where:')
+            lines.extend(legend)
+        return '\n'.join(lines)

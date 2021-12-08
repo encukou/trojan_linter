@@ -1,4 +1,5 @@
 #include <Python.h>
+#include <string.h>
 #include "unicode/ustring.h"
 #include "unicode/ubidi.h"
 
@@ -33,7 +34,8 @@ static PyObject *
 process_source(PyObject *module, PyObject *buf) {
     PyObject *retval = NULL;
     PyObject *result = NULL;
-    PyObject *bidimap_bytes = NULL;
+    PyObject *bidi_l2v_map_bytes = NULL;
+    PyObject *bidi_v2l_map_bytes = NULL;
     UChar *u_buf = NULL;
     int32_t *bidimap_source = NULL;
     UBiDi *bidi = NULL;
@@ -96,18 +98,19 @@ process_source(PyObject *module, PyObject *buf) {
         // First. 4B per UTF-16 char for ICU to work with
         bidimap_source = PyMem_Malloc(u_size * sizeof(int32_t));
         if (!bidimap_source) goto finally;
-        // Then. 4B per Unicode codepoint for Python-compatible indexing
+        // Second. 4B per Unicode codepoint for Python-compatible indexing
         // (a Python bytes object is abused for the storage)
-        bidimap_bytes = PyBytes_FromStringAndSize(
+        bidi_l2v_map_bytes = PyBytes_FromStringAndSize(
             NULL, num_codepoints * sizeof(int32_t));
-        if (!bidimap_bytes) goto finally;
-        int32_t *bidimap = (int32_t *)PyBytes_AsString(bidimap_bytes);
-        if (!bidimap) goto finally;
+        if (!bidi_l2v_map_bytes) goto finally;
+        int32_t *bidi_l2v_map = (int32_t *)PyBytes_AsString(bidi_l2v_map_bytes);
+        if (!bidi_l2v_map) goto finally;
         // Perform the BIDI algorithm & get the logical map
         ubidi_getLogicalMap(bidi, bidimap_source, &err);
         if (raise_icu_error(err)) goto finally;
         // Copy to the Python-compatible buffer
         int index = 0;
+        int32_t max_bidi_pos = 0;
         for (int32_t u_pos=0; u_pos < u_size; /*U16_NEXT, */ index++ ) {
             if (index >= num_codepoints) {
                 PyErr_Format(
@@ -115,7 +118,10 @@ process_source(PyObject *module, PyObject *buf) {
                     INTERNAL_ERROR_NOTE "too many codepoints");
                 goto finally;
             }
-            bidimap[index] = bidimap_source[u_pos];
+            bidi_l2v_map[index] = bidimap_source[u_pos];
+            if (max_bidi_pos < bidimap_source[u_pos]) {
+                max_bidi_pos = bidimap_source[u_pos];
+            }
             U16_NEXT(u_buf, u_pos, u_buf, c);
         }
         if (index != num_codepoints) {
@@ -126,15 +132,34 @@ process_source(PyObject *module, PyObject *buf) {
                 (long)num_codepoints);
             goto finally;
         }
+        ubidi_close(bidi);
+        bidi = NULL;
+        PyMem_Free(bidimap_source);
+        bidimap_source = NULL;
+        // Now we're done with the  buffer for ICU, but...
+        // Third. 4B per codepoint position for backwards indexing
+        // (a Python bytes object is again abused for the storage)
+        bidi_v2l_map_bytes = PyBytes_FromStringAndSize(
+            NULL, (max_bidi_pos + 1) * sizeof(int32_t));
+        if (!bidi_v2l_map_bytes) goto finally;
+        int32_t *bidi_v2l_map = (int32_t *)PyBytes_AsString(bidi_v2l_map_bytes);
+        for (int i=0; i < (max_bidi_pos + 1); i++) {
+            bidi_v2l_map[i] = -1;
+        }
+        for (int i=0; i < num_codepoints; i++) {
+            bidi_v2l_map[bidi_l2v_map[i]] = i;
+        }
     }
 
     retval = Py_BuildValue(
-        "OO",
+        "OOO",
         result,
-        bidimap_bytes ? bidimap_bytes : Py_None);
+        bidi_l2v_map_bytes ? bidi_l2v_map_bytes : Py_None,
+        bidi_v2l_map_bytes ? bidi_v2l_map_bytes : Py_None);
 finally:
     Py_XDECREF(result);
-    Py_XDECREF(bidimap_bytes);
+    Py_XDECREF(bidi_l2v_map_bytes);
+    Py_XDECREF(bidi_v2l_map_bytes);
     PyMem_Free(u_buf);
     PyMem_Free(bidimap_source);
     if (bidi) ubidi_close(bidi);

@@ -54,12 +54,15 @@ def lint_text(name, text, tokenizer):
 
     linemap = _get_linemap()
 
-    nit_tuples, bidimap = c_linter.process_source(text)
+    nit_tuples, bidi_l2v_map, bidi_v2l_map = c_linter.process_source(text)
     for name, *args in nit_tuples:
         yield getattr(nits, name)(text, linemap, *args)
 
-    if bidimap:
-        bidimap = memoryview(bidimap).cast(INT32_FORMAT)
+    if bidi_l2v_map:
+        bidi_l2v_map = memoryview(bidi_l2v_map).cast(INT32_FORMAT)
+        bidi_v2l_map = memoryview(bidi_v2l_map).cast(INT32_FORMAT)
+        print('l2v', list(bidi_l2v_map))
+        print('v2l', list(bidi_v2l_map))
 
     for token in tokenizer(text, linemap):
         if not token.string.isascii():
@@ -69,14 +72,14 @@ def lint_text(name, text, tokenizer):
             if mapped.isascii():
                 ascii_lookalike = mapped
             yield nits.NonASCII(text, linemap, token, ascii_lookalike)
-        if bidimap:
-            print(list(bidimap))
-            def bidi_sort_key(i_c):
-                index, char = i_c
-                return bidimap[index + token.start_index], char
-            reordered = ''.join(c for i, c in sorted(
-                enumerate(token.string),
-                key=bidi_sort_key,
-            ))
-            if reordered != token.string:
-                yield nits.ReorderedToken(text, linemap, token, reordered)
+        if bidi_l2v_map and len(token.string) > 1:
+            logical_indices = range(token.start_index, token.start_index+len(token.string))
+            visual_indices = [bidi_l2v_map[i] for i in logical_indices]
+            visual_indices_set = set(visual_indices)
+            reordered_visual_indices = range(
+                min(visual_indices), max(visual_indices) + 1)
+            reordered_logical_indices = [bidi_v2l_map[i] for i in reordered_visual_indices]
+            reordered_string = ''.join(text[i] for i in reordered_logical_indices)
+            reordered_char_in_token = [i in visual_indices_set for i in reordered_visual_indices]
+            if reordered_string != token.string:
+                yield nits.ReorderedToken(text, linemap, token, reordered_string, reordered_char_in_token)
