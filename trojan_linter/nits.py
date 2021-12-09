@@ -38,6 +38,18 @@ class NonASCII(Nit):
         self.ascii_lookalike = ascii_lookalike
         self.nfkc = nfkc
 
+class PrecisFail(Nit):
+    def __init__(self, source, linemap, token, reason):
+        super().__init__(source, linemap, token.start_index)
+        self.token = token
+        self.token_type = token.type
+        self.string = token.string
+        self.reason = reason
+
+    @cached_property
+    def nfkc(self):
+        return unicodedata.normalize('NFKC', self.string)
+
 class ReorderedToken(Nit):
     def __init__(self, source, linemap, token, reordered, reordered_char_in_token):
         super().__init__(source, linemap, token.start_index)
@@ -76,3 +88,11 @@ class ReorderedToken(Nit):
             lines.append('where:')
             lines.extend(legend)
         return '\n'.join(lines)
+
+class ReorderedLine(Nit):
+    def __init__(self, source, linemap, lineno, string, reordered, reordered_char_in_token):
+        super().__init__(source, linemap, linemap.row_col_to_index(lineno, 0))
+        self.lineno = lineno
+        self.string = string
+        self.reordered = reordered
+        self.reordered_char_in_token = reordered_char_in_token

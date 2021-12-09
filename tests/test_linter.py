@@ -11,6 +11,7 @@ from hypothesis.strategies import sampled_from
 from trojan_linter.linter import lint_text, LineMap, ALLOWED_CONTROL_CHARS
 from trojan_linter.nits import ControlChar, safe_char_repr
 from trojan_linter.tokenize_python import tokenize
+from trojan_linter.profiles import PythonProfile, TestingProfile
 
 
 clean_ascii_text = text(one_of(
@@ -21,7 +22,7 @@ clean_ascii_text = text(one_of(
 
 @given(clean_ascii_text)
 def test_clean_ascii(text):
-    assert list(lint_text('test', text, tokenize)) == []
+    assert list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles)) == []
 
 
 @given(
@@ -36,7 +37,7 @@ def test_control_chars(text, pos, control):
     pos %= len(text) + 1
     text = text[:pos] + control + text[pos:]
     try:
-        nits = list(lint_text('test', text, tokenize))
+        nits = list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
     except SyntaxError:
         with pytest.raises(SyntaxError):
             compile(text, 'test', 'exec')
@@ -56,7 +57,7 @@ def test_control_chars(text, pos, control):
     )),
 )
 def test_all_control_chars(text):
-    nits = list(lint_text('test', text, tokenize))
+    nits = list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
     print(nits)
     assert len(nits) >= len(text)
     for nit in nits[:len(text)]:
@@ -74,7 +75,7 @@ def test_surrogates(text, pos, control):
     pos %= len(text) + 1
     text = text[:pos] + control + text[pos:]
     with pytest.raises(UnicodeError):
-        list(lint_text('test', text, tokenize))
+        list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
 
 
 CASES = {
@@ -140,6 +141,7 @@ CASES = {
             'reordered': "'\N{HEBREW LETTER GIMEL}\N{HEBREW LETTER ALEF}'",
             'token_type': 'string',
         },
+        {'name': 'ReorderedLine', 'lineno': 1},
     ],
     """'zz\N{HEBREW LETTER ALEF} -' + '- \N{HEBREW LETTER GIMEL}zz'""": [
         {'name': 'NonASCII'},
@@ -160,6 +162,7 @@ CASES = {
             'reordered': "'zz\N{HEBREW LETTER GIMEL} -' + '- \N{HEBREW LETTER ALEF}",
             'token_type': 'string',
         },
+        {'name': 'ReorderedLine', 'lineno': 1},
         {'name': 'NonASCII'},
         {
             'name': 'ReorderedToken',
@@ -181,13 +184,24 @@ CASES = {
     ],
     "'\N{HEBREW LETTER ALEF}' * 1_9 + '\N{HEBREW LETTER ALEF}'": [
         {'name': 'NonASCII', 'string': "'\N{HEBREW LETTER ALEF}'"},
+        {'name': 'ReorderedLine', 'lineno': 1},
         {
             'name': 'ReorderedToken',
             'string': "1_9",
             'reordered': "9_1",
             'token_type': 'number',
         },
-        {'name': 'NonASCII', 'string': "'\N{HEBREW LETTER ALEF}'"},
+         {'name': 'NonASCII', 'string': "'\N{HEBREW LETTER ALEF}'"},
+    ],
+    "\N{HEBREW LETTER ALEF} + \N{HEBREW LETTER GIMEL}": [
+        {'name': 'NonASCII', 'string': "\N{HEBREW LETTER ALEF}"},
+        {
+            'name': 'ReorderedLine',
+            'lineno': 1,
+            'string': "\N{HEBREW LETTER ALEF} + \N{HEBREW LETTER GIMEL}",
+            'reordered': "\N{HEBREW LETTER GIMEL} + \N{HEBREW LETTER ALEF}",
+        },
+        {'name': 'NonASCII', 'string': "\N{HEBREW LETTER GIMEL}"},
     ],
     "\N{LATIN SMALL LIGATURE FI} = 'u\N{COMBINING DIAERESIS}'": [
         {
@@ -196,9 +210,37 @@ CASES = {
             'nfkc': "fi",
         },
         {
+            'name': 'PrecisFail',
+            'string': "\N{LATIN SMALL LIGATURE FI}",
+            'reason': "DISALLOWED/has_compat",
+            'nfkc': "fi",
+        },
+        {
             'name': 'NonASCII',
             'string': "'u\N{COMBINING DIAERESIS}'",
             'nfkc': "'\N{LATIN SMALL LETTER U WITH DIAERESIS}'",
+        },
+    ],
+    "print(len((lambda x,\N{HANGUL FILLER}: (\N{HANGUL FILLER},))(1, 2)))": [
+        {
+            'name': 'NonASCII',
+            'string': "\N{HANGUL FILLER}",
+        },
+        {
+            'name': 'PrecisFail',
+            'string': "\N{HANGUL FILLER}",
+            'reason': "DISALLOWED/precis_ignorable_properties",
+            'nfkc': "\N{HANGUL JUNGSEONG FILLER}",
+        },
+        {
+            'name': 'NonASCII',
+            'string': "\N{HANGUL FILLER}",
+        },
+        {
+            'name': 'PrecisFail',
+            'string': "\N{HANGUL FILLER}",
+            'reason': "DISALLOWED/precis_ignorable_properties",
+            'nfkc': "\N{HANGUL JUNGSEONG FILLER}",
         },
     ],
 }
@@ -206,7 +248,7 @@ CASES = {
 @pytest.mark.parametrize('source', CASES)
 def test_cases(source):
     expected = CASES[source]
-    nits = list(lint_text('test', source, tokenize))
+    nits = list(lint_text('test', source, tokenize, PythonProfile.token_string_profiles))
     print(nits)
     assert len(nits) == len(expected)
     for nit, exp in zip(nits, expected):
