@@ -9,7 +9,7 @@ from hypothesis.strategies import text, integers, characters, one_of
 from hypothesis.strategies import sampled_from
 
 from trojan_linter.linter import lint_text, LineMap, ALLOWED_CONTROL_CHARS
-from trojan_linter.nits import ControlChar, safe_char_repr
+from trojan_linter.nits import NonASCII, ReorderedLine, ReorderedToken, safe_char_repr
 from trojan_linter.tokenize_python import tokenize
 from trojan_linter.profiles import PythonProfile, TestingProfile
 
@@ -28,10 +28,15 @@ def test_clean_ascii(text):
 @given(
     clean_ascii_text,
     integers(0),
-    characters(
-        whitelist_categories=('Co', 'Cf', 'Cn', 'Cc'),
-        blacklist_characters=ALLOWED_CONTROL_CHARS,
-    ),
+    one_of(
+        characters(
+            whitelist_categories=('Co', 'Cf', 'Cc'),
+            blacklist_characters=ALLOWED_CONTROL_CHARS,
+        ),
+        # Include an unassigned character. 'Cn' category is problematic
+        # as it depends on the Unicode version.
+        sampled_from('\U0001FF80'),
+    )
 )
 def test_control_chars(text, pos, control):
     pos %= len(text) + 1
@@ -44,10 +49,11 @@ def test_control_chars(text, pos, control):
         assume(False)
     print(nits)
     assert len(nits) >= 1
-    nit = nits[0]
-    assert isinstance(nit, ControlChar)
-    assert nit.index == pos
-    assert unicodedata.category(text[nit.index]).startswith('C')
+    assert all(isinstance(nit, (NonASCII, ReorderedLine, ReorderedToken)) for nit in nits)
+    assert any(isinstance(nit, NonASCII) and nit.control_index == pos for nit in nits)
+    for nit in nits:
+        if isinstance(nit, NonASCII) and nit.control_index == pos:
+            assert unicodedata.category(text[nit.control_index]).startswith('C')
 
 
 @given(
@@ -60,8 +66,9 @@ def test_all_control_chars(text):
     nits = list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
     print(nits)
     assert len(nits) >= len(text)
-    for nit in nits[:len(text)]:
-        assert isinstance(nit, ControlChar)
+    assert all(isinstance(nit, (NonASCII, ReorderedLine, ReorderedToken)) for nit in nits)
+    if text:
+        assert any(isinstance(nit, NonASCII) for nit in nits)
 
 
 @given(
@@ -241,6 +248,12 @@ CASES = {
             'string': "\N{HANGUL FILLER}",
             'reason': "DISALLOWED/precis_ignorable_properties",
             'nfkc': "\N{HANGUL JUNGSEONG FILLER}",
+        },
+    ],
+    "'\U0001FF80'": [
+        {
+            'name': 'NonASCII',
+            'string': "'\U0001FF80'",
         },
     ],
 }

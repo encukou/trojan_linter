@@ -26,17 +26,15 @@ class Nit:
     def __init_subclass__(cls):
         cls.name = cls.__name__
 
-class ControlChar(Nit):
-    pass
-
 class NonASCII(Nit):
-    def __init__(self, source, linemap, token, ascii_lookalike, nfkc):
+    def __init__(self, source, linemap, token, ascii_lookalike, nfkc, control_match):
         super().__init__(source, linemap, token.start_index)
         self.token = token
         self.token_type = token.type
         self.string = token.string
         self.ascii_lookalike = ascii_lookalike
         self.nfkc = nfkc
+        self.control_index = self.index + control_match.start(0) if control_match else None
 
 class PrecisFail(Nit):
     def __init__(self, source, linemap, token, reason):

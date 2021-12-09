@@ -17,36 +17,19 @@ raise_icu_error(UErrorCode err) {
     return 0;
 }
 
-static int
-append_nit_args(PyObject *list, char *format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    PyObject *warning = Py_VaBuildValue(format, vl);
-    va_end(vl);
-    if (!warning) return 1;
-    int res = PyList_Append(list, warning);
-    Py_DECREF(warning);
-    if (res != 0) return 1;
-    return 0;
-}
-
 static PyObject *
 process_source(PyObject *module, PyObject *buf) {
     PyObject *retval = NULL;
-    PyObject *result = NULL;
     PyObject *bidi_l2v_map_bytes = NULL;
     PyObject *bidi_v2l_map_bytes = NULL;
     UChar *u_buf = NULL;
     int32_t *bidimap_source = NULL;
     UBiDi *bidi = NULL;
-    int res;
     if (!PyUnicode_Check(buf)) {
         PyErr_SetString(PyExc_TypeError, "buf must be a string");
         goto finally;
     }
     Py_ssize_t num_codepoints = PyUnicode_GetLength(buf);
-    result = PyList_New(0);
-    if (!result) goto finally;
 
     // Get the UTF-8 buffer
     Py_ssize_t utf8_size;
@@ -63,27 +46,6 @@ process_source(PyObject *module, PyObject *buf) {
     UErrorCode err = U_ZERO_ERROR;
     u_strFromUTF8(u_buf, utf8_size, &u_size, (const char*)utf8_buf, utf8_size, &err);
     if (raise_icu_error(err)) goto finally;
-
-    // Search for non-allowed control characters
-    UChar32 c;
-    for (int32_t u_pos=0, index=0; u_pos < u_size; /*U16_NEXT, */ index++ ) {
-        int is_bad_control;
-        if ((c = u_buf[u_pos]) < sizeof(allowed_control_lut)) {
-            // ASCII case, check our lookup table
-            u_pos++;
-            is_bad_control = !allowed_control_lut[c];
-        } else {
-            // Check Unicode database. All nonascii controls are bad.
-            U16_NEXT(u_buf, u_pos, u_size, c);
-            is_bad_control =
-                u_getIntPropertyValue(c, UCHAR_GENERAL_CATEGORY_MASK)
-                & U_GC_C_MASK;
-        }
-        if (is_bad_control) {
-            res = append_nit_args(result, "si", "ControlChar", (int)index);
-            if (res != 0) goto finally;
-        }
-    }
 
     // Build the BIDI map
     bidi = ubidi_open();
@@ -111,6 +73,7 @@ process_source(PyObject *module, PyObject *buf) {
         // Copy to the Python-compatible buffer
         int index = 0;
         int32_t max_bidi_pos = 0;
+        UChar32 c;
         for (int32_t u_pos=0; u_pos < u_size; /*U16_NEXT, */ index++ ) {
             if (index >= num_codepoints) {
                 PyErr_Format(
@@ -152,12 +115,10 @@ process_source(PyObject *module, PyObject *buf) {
     }
 
     retval = Py_BuildValue(
-        "OOO",
-        result,
+        "OO",
         bidi_l2v_map_bytes ? bidi_l2v_map_bytes : Py_None,
         bidi_v2l_map_bytes ? bidi_v2l_map_bytes : Py_None);
 finally:
-    Py_XDECREF(result);
     Py_XDECREF(bidi_l2v_map_bytes);
     Py_XDECREF(bidi_v2l_map_bytes);
     PyMem_Free(u_buf);

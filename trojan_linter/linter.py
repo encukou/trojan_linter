@@ -1,6 +1,6 @@
 from bisect import bisect_right
 import unicodedata
-import re
+import regex
 import io
 import struct
 
@@ -9,7 +9,11 @@ from . import _linter as c_linter
 from .confusables import ascii_confusable_map
 
 ALLOWED_CONTROL_CHARS = '\t\n\v\f\r'
-ASCII_CONTROL_RE = re.compile(r'[\0-\x08\x0E-\x1F\x7F]')
+ASCII_CONTROL_RE = regex.compile(r'[\0-\x08\x0E-\x1F\x7F]')
+ANY_CONTROL_RE = regex.compile(
+    r'[[\p{C}]--[%s]]' % ALLOWED_CONTROL_CHARS,
+    regex.V1,
+)
 
 for INT32_FORMAT in '@i', '@l', '@q':
     if struct.calcsize(INT32_FORMAT) == 4:
@@ -46,17 +50,12 @@ def lint_text(name, text, tokenizer, token_string_profiles):
             linemap = LineMap(text)
         return linemap
 
-    if text.isascii():
-        # Only handle control chars
-        for match in ASCII_CONTROL_RE.finditer(text):
-            yield nits.ControlChar(text, _get_linemap(), match.start())
+    if text.isascii() and not ASCII_CONTROL_RE.search(text):
         return
 
     linemap = _get_linemap()
 
-    nit_tuples, bidi_l2v_map, bidi_v2l_map = c_linter.process_source(text)
-    for name, *args in nit_tuples:
-        yield getattr(nits, name)(text, linemap, *args)
+    bidi_l2v_map, bidi_v2l_map = c_linter.process_source(text)
 
     if bidi_l2v_map:
         bidi_l2v_map = memoryview(bidi_l2v_map).cast(INT32_FORMAT)
@@ -67,14 +66,16 @@ def lint_text(name, text, tokenizer, token_string_profiles):
     last_visual_start = -1
     reordered_lines = set()
     for token in tokenizer(text, linemap):
-        if not token.string.isascii():
+        control_match = ANY_CONTROL_RE.search(token.string)
+        print(token, control_match)
+        if control_match or not token.string.isascii():
             ascii_lookalike = None
             nfkc = unicodedata.normalize('NFKC', token.string)
             nfd = unicodedata.normalize('NFD', token.string)
             mapped = nfd.translate(ascii_confusable_map)
             if mapped.isascii():
                 ascii_lookalike = mapped
-            yield nits.NonASCII(text, linemap, token, ascii_lookalike, nfkc)
+            yield nits.NonASCII(text, linemap, token, ascii_lookalike, nfkc, control_match)
 
             if token.string:
                 try:
