@@ -27,7 +27,7 @@ class Nit:
         cls.name = cls.__name__
 
 class NonASCII(Nit):
-    def __init__(self, source, linemap, token, ascii_lookalike, nfkc, control_match):
+    def __init__(self, source, linemap, token, ascii_lookalike, nfkc, control_match, previous_token):
         super().__init__(source, linemap, token.start_index)
         self.token = token
         self.token_type = token.type
@@ -35,6 +35,9 @@ class NonASCII(Nit):
         self.ascii_lookalike = ascii_lookalike
         self.nfkc = nfkc
         self.control_index = self.index + control_match.start(0) if control_match else None
+        self.previous_token = previous_token
+        if previous_token:
+            self.previous_pos = previous_token.start
 
 class PrecisFail(Nit):
     def __init__(self, source, linemap, token, reason):

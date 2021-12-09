@@ -63,26 +63,42 @@ def lint_text(name, text, tokenizer, token_string_profiles):
         # print('l2v', list(bidi_l2v_map))
         # print('v2l', list(bidi_v2l_map))
 
+    # {token_type: {normalized_string: token}}
+    seen_tokens = {}
+
     last_visual_start = -1
     reordered_lines = set()
     for token in tokenizer(text, linemap):
+        previous_token = None
+        if token.string:
+            try:
+                normalized = token_string_profiles[token.type](token.string)
+            except UnicodeEncodeError as e:
+                yield nits.PrecisFail(
+                    text, linemap, token, e.reason,
+                )
+                normalized = None
+            print('norm', normalized)
+            if normalized is not None:
+                seen = seen_tokens.setdefault(token.type, {})
+                previous_token = seen.get(normalized)
+                if previous_token:
+                    if previous_token.string == token.string:
+                        previous_token = None
+                else:
+                    seen[normalized] = token
+
+
         control_match = ANY_CONTROL_RE.search(token.string)
-        if control_match or not token.string.isascii():
+        if control_match or not token.string.isascii() or previous_token:
             ascii_lookalike = None
             nfkc = unicodedata.normalize('NFKC', token.string)
             nfd = unicodedata.normalize('NFD', token.string)
             mapped = nfd.translate(ascii_confusable_map)
             if mapped.isascii():
                 ascii_lookalike = mapped
-            yield nits.NonASCII(text, linemap, token, ascii_lookalike, nfkc, control_match)
 
-            if token.string:
-                try:
-                    token_string_profiles[token.type](token.string)
-                except UnicodeEncodeError as e:
-                    yield nits.PrecisFail(
-                        text, linemap, token, e.reason,
-                    )
+            yield nits.NonASCII(text, linemap, token, ascii_lookalike, nfkc, control_match, previous_token)
 
         if bidi_l2v_map:
             if len(token.string) > 1:

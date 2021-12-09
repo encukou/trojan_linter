@@ -44,7 +44,7 @@ def test_control_chars(text, pos, control):
     try:
         nits = list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
     except SyntaxError:
-        with pytest.raises(SyntaxError):
+        with pytest.raises((SyntaxError, ValueError)):
             compile(text, 'test', 'exec')
         assume(False)
     print(nits)
@@ -212,14 +212,14 @@ CASES = {
     ],
     "\N{LATIN SMALL LIGATURE FI} = 'u\N{COMBINING DIAERESIS}'": [
         {
-            'name': 'NonASCII',
-            'string': "\N{LATIN SMALL LIGATURE FI}",
-            'nfkc': "fi",
-        },
-        {
             'name': 'PrecisFail',
             'string': "\N{LATIN SMALL LIGATURE FI}",
             'reason': "DISALLOWED/has_compat",
+            'nfkc': "fi",
+        },
+        {
+            'name': 'NonASCII',
+            'string': "\N{LATIN SMALL LIGATURE FI}",
             'nfkc': "fi",
         },
         {
@@ -230,10 +230,6 @@ CASES = {
     ],
     "print(len((lambda x,\N{HANGUL FILLER}: (\N{HANGUL FILLER},))(1, 2)))": [
         {
-            'name': 'NonASCII',
-            'string': "\N{HANGUL FILLER}",
-        },
-        {
             'name': 'PrecisFail',
             'string': "\N{HANGUL FILLER}",
             'reason': "DISALLOWED/precis_ignorable_properties",
@@ -248,18 +244,38 @@ CASES = {
             'string': "\N{HANGUL FILLER}",
             'reason': "DISALLOWED/precis_ignorable_properties",
             'nfkc': "\N{HANGUL JUNGSEONG FILLER}",
+        },
+        {
+            'name': 'NonASCII',
+            'string': "\N{HANGUL FILLER}",
         },
     ],
     "'\U0001FF80'": [
-        {
-            'name': 'NonASCII',
-            'string': "'\U0001FF80'",
-        },
         {
             'name': 'PrecisFail',
             'string': "'\U0001FF80'",
             'reason': "DISALLOWED/unassigned",
             'nfkc': "'\U0001FF80'",
+        },
+        {
+            'name': 'NonASCII',
+            'string': "'\U0001FF80'",
+        },
+    ],
+    """
+        \N{KELVIN SIGN}lock
+        Klock
+    """: [
+        {
+            'name': 'NonASCII',
+            'string': "\N{KELVIN SIGN}lock",
+            'row': 2,
+            'col': 8,
+        },
+        {
+            'name': 'NonASCII',
+            'string': "Klock",
+            'previous_pos': (2, 8),
         },
     ],
 }
