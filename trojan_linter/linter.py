@@ -67,7 +67,6 @@ def lint_text(name, text, tokenizer, token_string_profiles):
     reordered_lines = set()
     for token in tokenizer(text, linemap):
         control_match = ANY_CONTROL_RE.search(token.string)
-        print(token, control_match)
         if control_match or not token.string.isascii():
             ascii_lookalike = None
             nfkc = unicodedata.normalize('NFKC', token.string)

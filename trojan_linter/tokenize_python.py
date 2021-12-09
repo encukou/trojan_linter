@@ -19,8 +19,8 @@ class Token:
 TOKEN_TYPE_MAP = {
     token_info.ENDMARKER: 'space',
     token_info.NUMBER: 'number',
-    token_info.NEWLINE: 'newline',
-    token_info.NL: 'newline',
+    token_info.NEWLINE: 'space',
+    token_info.NL: 'space',
     token_info.NAME: 'name',
     token_info.OP: 'op',
     token_info.ERRORTOKEN: 'op',

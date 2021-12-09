@@ -255,6 +255,12 @@ CASES = {
             'name': 'NonASCII',
             'string': "'\U0001FF80'",
         },
+        {
+            'name': 'PrecisFail',
+            'string': "'\U0001FF80'",
+            'reason': "DISALLOWED/unassigned",
+            'nfkc': "'\U0001FF80'",
+        },
     ],
 }
 

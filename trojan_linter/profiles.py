@@ -10,6 +10,9 @@ class Profile:
 opaque_precis_profile = precis_i18n.get_profile('OpaqueString')
 username_precis_profile = precis_i18n.get_profile('UsernameCasePreserved')
 nickname_precis_profile = precis_i18n.get_profile('NicknameCasePreserved')
+def ensure_ascii(string):
+    string.encode('ascii')
+    return string
 
 class TestingProfile(Profile):
     tokenize = tokenize_python.tokenize
@@ -21,7 +24,6 @@ class TestingProfile(Profile):
         'name': str,
         'string': str,
         'op': str,
-        'newline': str,
         'space': str,
         'number': str,
         'comment': str,
@@ -35,10 +37,9 @@ class PythonProfile(Profile):
 
     token_string_profiles = {
         'name': username_precis_profile.enforce,
-        'string': str,
-        'op': str,
-        'newline': str,
-        'space': str,
-        'number': str,
-        'comment': str,
+        'string': opaque_precis_profile.enforce,
+        'op': ensure_ascii,
+        'space': ensure_ascii,
+        'number': ensure_ascii,
+        'comment': opaque_precis_profile.enforce,
     }
