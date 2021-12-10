@@ -40,8 +40,8 @@ def python_string_profile(token):
 class TestingProfile(Profile):
     tokenize = tokenize_python.tokenize
     def read_file(self, filename):
-        with py_tokenize.open(filename) as f:
-            return filename.read()
+        with py_tokenize.open(filename) as file:
+            return file.read()
 
     token_profiles = {
         'name': str,
@@ -55,8 +55,8 @@ class TestingProfile(Profile):
 class PythonProfile(Profile):
     tokenize = tokenize_python.tokenize
     def read_file(self, filename):
-        with py_tokenize.open(filename) as f:
-            return filename.read()
+        with py_tokenize.open(filename) as file:
+            return file.read()
 
     token_profiles = {
         'name': username_token_profile,

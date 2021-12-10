@@ -1,7 +1,7 @@
-from functools import cached_property
-import unicodedata
-
-import re
+try:
+    from functools import cached_property
+except ImportError:
+    cached_property = property
 
 
 def safe_char_repr(char, min_passthru=32):

@@ -1,6 +1,5 @@
 import unicodedata
 from ast import literal_eval
-from textwrap import dedent
 import re
 
 import pytest
@@ -8,7 +7,7 @@ from hypothesis import given, assume
 from hypothesis.strategies import text, integers, characters, one_of
 from hypothesis.strategies import sampled_from
 
-from trojan_linter.linter import lint_text, LineMap, ALLOWED_CONTROL_CHARS
+from trojan_linter.linter import lint_text, ALLOWED_CONTROL_CHARS
 from trojan_linter.nits import safe_char_repr, safe_char_reprs
 from trojan_linter.tokenize_python import tokenize
 from trojan_linter.profiles import PythonProfile, TestingProfile

@@ -1,9 +1,11 @@
-from functools import cached_property
 import tokenize as py_tokenize
 import token as token_info
-import dataclasses
-import difflib
 import io
+
+try:
+    from functools import cached_property
+except ImportError:
+    cached_property = property
 
 import regex
 

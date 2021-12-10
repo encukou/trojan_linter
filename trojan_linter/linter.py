@@ -22,7 +22,7 @@ for INT32_FORMAT in '@i', '@l', '@q':
     if struct.calcsize(INT32_FORMAT) == 4:
         break
 else:
-    raise SystemError(f'could not find struct format for native int32')
+    raise SystemError('could not find struct format for native int32')
 
 class LineMap:
     """Maps text indices to (line, column) pairs and vice versa"""

@@ -1,7 +1,6 @@
 import pytest
 from hypothesis import given, example, assume
-from hypothesis.strategies import text, characters, one_of
-from hypothesis.strategies import sampled_from
+from hypothesis.strategies import text
 
 from trojan_linter.linter import LineMap
 from trojan_linter.tokenize_python import tokenize
