@@ -115,8 +115,11 @@ CASES = {
     ],
     'u"s\N{CYRILLIC SMALL LETTER ES}ope"': [
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
+            'py_delimiter': '"',
+            'py_content': 's\N{CYRILLIC SMALL LETTER ES}ope',
+            'py_flags': {'u'},
             'row': 1,
             'col': 0,
             'start_index': 0,
@@ -145,9 +148,12 @@ CASES = {
     ],
     "names = 'x\u02BB, \u02BBy' ": [
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
             'string': "'x\u02BB, \u02BBy'",
+            'py_delimiter': "'",
+            'py_content': 'x\u02BB, \u02BBy',
+            'py_flags': set(),
             'row': 1,
             'col': 8,
             'start_index': 8,
@@ -165,9 +171,12 @@ CASES = {
     ],
     "names = 'x\u02BB', '\u02BBy' ": [
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
             'string': "'x\u02BB'",
+            'py_delimiter': "'",
+            'py_content': 'x\u02BB',
+            'py_flags': set(),
             'nits': [
                 {'name': 'NonASCII'},
                 {
@@ -177,9 +186,12 @@ CASES = {
             ],
         },
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
             'string': "'\u02BBy'",
+            'py_delimiter': "'",
+            'py_content': '\u02BBy',
+            'py_flags': set(),
             'nits': [
                 {'name': 'NonASCII'},
                 {
@@ -191,9 +203,12 @@ CASES = {
     ],
     "int('৪୨')": [
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
             'string': "'৪୨'",
+            'py_delimiter': "'",
+            'py_content': '৪୨',
+            'py_flags': set(),
             'nits': [
                 {'name': 'NonASCII'},
                 {
@@ -205,7 +220,7 @@ CASES = {
     ],
     "'\N{HEBREW LETTER ALEF}\N{HEBREW LETTER GIMEL}'": [
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
             'string': "'\N{HEBREW LETTER ALEF}\N{HEBREW LETTER GIMEL}'",
             'string_safe': r"'\u05d0\u05d2'",
@@ -235,7 +250,7 @@ CASES = {
     ],
     """'zz\N{HEBREW LETTER ALEF} -' + '- \N{HEBREW LETTER GIMEL}zz'""": [
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
             'string': "'zz\N{HEBREW LETTER ALEF} -'",
             'string_safe': r"'zz\u05d0 -'",
@@ -265,7 +280,7 @@ CASES = {
             ],
         },
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
             'string': "'- \N{HEBREW LETTER GIMEL}zz'",
             'nits': [
@@ -282,7 +297,7 @@ CASES = {
     ],
     "'\N{HEBREW LETTER ALEF}' * 1_9 + '\N{HEBREW LETTER ALEF}'": [
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
             'string': "'\N{HEBREW LETTER ALEF}'",
             'nits': [
@@ -316,7 +331,7 @@ CASES = {
             ],
         },
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
             'string': "'\N{HEBREW LETTER ALEF}'",
             'nits': [
@@ -377,7 +392,7 @@ CASES = {
             ],
         },
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
             'string': "'u\N{COMBINING DIAERESIS}'",
             'nits': [
@@ -411,7 +426,7 @@ CASES = {
     ],
     "'\U0001FF80'": [
         {
-            'name': 'Token',
+            'name': 'StringToken',
             'type': 'string',
             'string': "'\U0001FF80'",
             'nits': [
@@ -463,6 +478,79 @@ CASES = {
                     },
                 },
             ],
+        },
+    ],
+    """
+        '''\N{LATIN SMALL LETTER U WITH DIAERESIS}'''
+        u'\N{LATIN SMALL LETTER U WITH DIAERESIS}'
+        u"\N{LATIN SMALL LETTER U WITH DIAERESIS}"
+        rf'\N{LATIN SMALL LETTER U WITH DIAERESIS}'
+        b'\N{LATIN SMALL LETTER U WITH DIAERESIS}'
+        r'\N{LATIN SMALL LETTER U WITH DIAERESIS}'
+        fr'\N{LATIN SMALL LETTER U WITH DIAERESIS}'
+    """: [
+        {
+            'name': 'StringToken',
+            'type': 'string',
+            'string': "'''\N{LATIN SMALL LETTER U WITH DIAERESIS}'''",
+            'py_delimiter': "'''",
+            'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
+            'py_flags': set(),
+            'nits': [{'name': 'NonASCII'}],
+        },
+        {
+            'name': 'StringToken',
+            'type': 'string',
+            'string': "u'\N{LATIN SMALL LETTER U WITH DIAERESIS}'",
+            'py_delimiter': "'",
+            'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
+            'py_flags': {'u'},
+            'nits': [{'name': 'NonASCII'}],
+        },
+        {
+            'name': 'StringToken',
+            'type': 'string',
+            'string': 'u"\N{LATIN SMALL LETTER U WITH DIAERESIS}"',
+            'py_delimiter': '"',
+            'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
+            'py_flags': {'u'},
+            'nits': [{'name': 'NonASCII'}],
+        },
+        {
+            'name': 'StringToken',
+            'type': 'string',
+            'string': "rf'\N{LATIN SMALL LETTER U WITH DIAERESIS}'",
+            'py_delimiter': "'",
+            'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
+            'py_flags': {'r', 'f'},
+            'nits': [{'name': 'NonASCII'}],
+        },
+        {
+            'name': 'StringToken',
+            'type': 'string',
+            'string': "b'\N{LATIN SMALL LETTER U WITH DIAERESIS}'",
+            'py_delimiter': "'",
+            'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
+            'py_flags': {'b'},
+            'nits': [{'name': 'NonASCII'}],
+        },
+        {
+            'name': 'StringToken',
+            'type': 'string',
+            'string': "r'\N{LATIN SMALL LETTER U WITH DIAERESIS}'",
+            'py_delimiter': "'",
+            'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
+            'py_flags': {'r'},
+            'nits': [{'name': 'NonASCII'}],
+        },
+        {
+            'name': 'StringToken',
+            'type': 'string',
+            'string': "fr'\N{LATIN SMALL LETTER U WITH DIAERESIS}'",
+            'py_delimiter': "'",
+            'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
+            'py_flags': {'r', 'f'},
+            'nits': [{'name': 'NonASCII'}],
         },
     ],
 }

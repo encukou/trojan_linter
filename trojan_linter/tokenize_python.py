@@ -1,24 +1,49 @@
+from functools import cached_property
 import tokenize as py_tokenize
 import token as token_info
 import dataclasses
 import difflib
 import io
 
+import regex
+
 from .nits import Token
+
+STRING_RE = regex.compile(
+    r'''(?P<flags>[^'"]*)(?P<delim>('|"){3}|'(?!')|"(?!"))(?P<content>.*)(?P=delim)'''
+)
+
+class StringToken(Token):
+    @cached_property
+    def _py_info(self):
+        return STRING_RE.fullmatch(self.string).groupdict()
+
+    @cached_property
+    def py_delimiter(self):
+        return self._py_info['delim']
+
+    @cached_property
+    def py_content(self):
+        return self._py_info['content']
+
+    @cached_property
+    def py_flags(self):
+        return set(self._py_info['flags'].lower())
+
 
 
 TOKEN_TYPE_MAP = {
-    token_info.ENDMARKER: 'space',
-    token_info.NUMBER: 'number',
-    token_info.NEWLINE: 'space',
-    token_info.NL: 'space',
-    token_info.NAME: 'name',
-    token_info.OP: 'op',
-    token_info.ERRORTOKEN: 'op',
-    token_info.COMMENT: 'comment',
-    token_info.INDENT: 'space',
-    token_info.DEDENT: 'space',
-    token_info.STRING: 'string',
+    token_info.ENDMARKER: ('space', Token),
+    token_info.NUMBER: ('number', Token),
+    token_info.NEWLINE: ('space', Token),
+    token_info.NL: ('space', Token),
+    token_info.NAME: ('name', Token),
+    token_info.OP: ('op', Token),
+    token_info.ERRORTOKEN: ('op', Token),
+    token_info.COMMENT: ('comment', Token),
+    token_info.INDENT: ('space', Token),
+    token_info.DEDENT: ('space', Token),
+    token_info.STRING: ('string', StringToken),
 }
 
 def generate_tokens(source):
@@ -47,9 +72,10 @@ def tokenize(source, linemap):
                 start_index=last_end_index,
                 end_index=start_index,
             )
-        yield Token(
+        tok_type_name, tok_class = TOKEN_TYPE_MAP[token.type]
+        yield tok_class(
             source, linemap,
-            type=TOKEN_TYPE_MAP[token.type],
+            type=tok_type_name,
             string=token.string,
             start_index=start_index,
             end_index=end_index,
