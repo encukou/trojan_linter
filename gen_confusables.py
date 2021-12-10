@@ -38,14 +38,6 @@ with open(filename, encoding='utf-8-sig') as file:
         target = ''.join(chr(int(t, 16)) for t in target.split())
         confusables[src] = target
 
-# Add a few extras...
-for src, target in {
-     0x1160: ' ',  # HANGUL JUNGSEONG FILLER - blank in many monospace fonts
-     0x3164: ' ',  # HANGUL FILLER - blank in many monospace fonts
-     0xFFA0: ' ',  # HANGUL HALFWIDTH FILLER - blank in many monospace fonts
-}.items():
-    confusables[src] = target
-
 print()
 print()
 print('ascii_confusable_map = {')

@@ -9,7 +9,10 @@ from . import _linter as c_linter
 from .confusables import ascii_confusable_map
 
 ALLOWED_CONTROL_CHARS = '\t\n\v\f\r'
-ASCII_CONTROL_RE = regex.compile(r'[\0-\x08\x0E-\x1F\x7F]')
+ASCII_CONTROL_RE = regex.compile(
+    r'[[\0-\x1F\x7F]--[%s]]' % ALLOWED_CONTROL_CHARS,
+    regex.V1,
+)
 ANY_CONTROL_RE = regex.compile(
     r'[[\p{C}]--[%s]]' % ALLOWED_CONTROL_CHARS,
     regex.V1,
@@ -69,36 +72,34 @@ def lint_text(name, text, tokenizer, token_string_profiles):
     last_visual_start = -1
     reordered_lines = set()
     for token in tokenizer(text, linemap):
-        previous_token = None
         if token.string:
             try:
                 normalized = token_string_profiles[token.type](token.string)
             except UnicodeEncodeError as e:
-                yield nits.PrecisFail(
-                    text, linemap, token, e.reason,
-                )
+                token.nits.append(nits.PolicyFail(token, e.reason))
                 normalized = None
-            print('norm', normalized)
             if normalized is not None:
                 seen = seen_tokens.setdefault(token.type, {})
                 previous_token = seen.get(normalized)
-                if previous_token:
-                    if previous_token.string == token.string:
-                        previous_token = None
+                if previous_token and previous_token.string != token.string:
+                    token.nits.append(nits.HasLookalike(token, previous_token))
                 else:
                     seen[normalized] = token
 
-
         control_match = ANY_CONTROL_RE.search(token.string)
-        if control_match or not token.string.isascii() or previous_token:
-            ascii_lookalike = None
-            nfkc = unicodedata.normalize('NFKC', token.string)
+        if control_match:
+            token.nits.append(nits.ControlCharacter(
+                token, control_match.start()))
+        if not token.string.isascii():
+            token.nits.append(nits.NonASCII(token))
             nfd = unicodedata.normalize('NFD', token.string)
             mapped = nfd.translate(ascii_confusable_map)
-            if mapped.isascii():
-                ascii_lookalike = mapped
+            if mapped.isascii() and mapped != token.string:
+                token.nits.append(nits.ASCIILookalike(token, mapped))
 
-            yield nits.NonASCII(text, linemap, token, ascii_lookalike, nfkc, control_match, previous_token)
+            nfkc = unicodedata.normalize('NFKC', token.string)
+            if nfkc != token.string:
+                token.nits.append(nits.NonNFKC(token, nfkc))
 
         if bidi_l2v_map:
             if len(token.string) > 1:
@@ -108,10 +109,10 @@ def lint_text(name, text, tokenizer, token_string_profiles):
                     token.start_index + len(token.string),
                 )
                 if reordered_string != token.string:
-                    yield nits.ReorderedToken(
-                        text, linemap, token, reordered_string,
+                    token.nits.append(nits.ReorderedToken(
+                        token, reordered_string,
                         reordered_char_in_token,
-                    )
+                    ))
 
             start_index = token.start_index
             if start_index >= len(bidi_l2v_map):
@@ -122,20 +123,21 @@ def lint_text(name, text, tokenizer, token_string_profiles):
                 if token.start[1] == 0:
                     lineno -= 1
                 if lineno not in reordered_lines:
-                    start = linemap.row_col_to_index(lineno, 0)
-                    end = linemap.row_col_to_index(lineno + 1, 0)
-                    line = text[start:end]
+                    line = nits.Line(text, linemap, lineno)
                     reordered_string, reordered_char_in_token = _reorder_string(
                         text, bidi_l2v_map, bidi_v2l_map,
-                        start,
-                        end,
+                        line.start_index,
+                        line.end_index,
                     )
-                    yield nits.ReorderedLine(
-                        text, linemap, lineno, line, reordered_string,
-                        reordered_char_in_token,
-                    )
-                reordered_lines.add(lineno)
+                    line.nits.append(nits.ReorderedLine(
+                        line, reordered_string, reordered_char_in_token,
+                    ))
+                    yield line
+                    reordered_lines.add(lineno)
             last_visual_start = visual_start
+
+        if token.nits:
+            yield token
 
 
 def _reorder_string(text, bidi_l2v_map, bidi_v2l_map, start_index, end_index):

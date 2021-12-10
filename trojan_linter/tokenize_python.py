@@ -4,17 +4,8 @@ import dataclasses
 import difflib
 import io
 
-LineAndColumn = tuple[int, int]
+from .nits import Token
 
-@dataclasses.dataclass
-class Token:
-    type: str
-    _py_type: int
-    string: str
-    start: LineAndColumn
-    end: LineAndColumn
-    start_index: int
-    end_index: int
 
 TOKEN_TYPE_MAP = {
     token_info.ENDMARKER: 'space',
@@ -38,9 +29,7 @@ def generate_tokens(source):
 
 
 def tokenize(source, linemap):
-    last_end = 1, 0
     last_end_index = 0
-    print("",last_end_index, repr(source))
     for token in generate_tokens(source):
         if token.type == token_info.ENDMARKER:
             assert token.start == token.end
@@ -49,39 +38,29 @@ def tokenize(source, linemap):
             assert token.start >= token.end
             continue
         start_index = linemap.row_col_to_index(*token.start)
-        start = linemap.index_to_row_col(start_index)
         end_index = linemap.row_col_to_index(*token.end)
-        end = linemap.index_to_row_col(end_index)
         if last_end_index < start_index:
             yield Token(
-                'space',
-                None,
-                source[last_end_index : start_index],
-                last_end,
-                start,
-                last_end_index,
-                start_index,
+                source, linemap,
+                type='space',
+                string=source[last_end_index:start_index],
+                start_index=last_end_index,
+                end_index=start_index,
             )
         yield Token(
-            TOKEN_TYPE_MAP[token.type],
-            token.type,
-            token.string,
-            start,
-            end,
-            start_index,
-            end_index,
+            source, linemap,
+            type=TOKEN_TYPE_MAP[token.type],
+            string=token.string,
+            start_index=start_index,
+            end_index=end_index,
         )
-        last_end = end
         last_end_index = end_index
-    end = len(source) + 1
-    print(last_end_index, end, repr(source))
-    if last_end_index < end:
+    eof_index = len(source) + 1
+    if last_end_index < eof_index:
         yield Token(
-            'space',
-            None,
-            source[last_end_index:],
-            last_end,
-            linemap.index_to_row_col(end),
-            last_end_index,
-            end,
+            source, linemap,
+            type='space',
+            string=source[last_end_index:],
+            start_index=last_end_index,
+            end_index=eof_index,
         )

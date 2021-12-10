@@ -9,7 +9,7 @@ from hypothesis.strategies import text, integers, characters, one_of
 from hypothesis.strategies import sampled_from
 
 from trojan_linter.linter import lint_text, LineMap, ALLOWED_CONTROL_CHARS
-from trojan_linter.nits import NonASCII, ReorderedLine, ReorderedToken, safe_char_repr
+from trojan_linter.nits import safe_char_repr, safe_char_reprs
 from trojan_linter.tokenize_python import tokenize
 from trojan_linter.profiles import PythonProfile, TestingProfile
 
@@ -42,33 +42,40 @@ def test_control_chars(text, pos, control):
     pos %= len(text) + 1
     text = text[:pos] + control + text[pos:]
     try:
-        nits = list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
+        bad_parts = list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
     except SyntaxError:
         with pytest.raises((SyntaxError, ValueError)):
             compile(text, 'test', 'exec')
         assume(False)
-    print(nits)
-    assert len(nits) >= 1
-    assert all(isinstance(nit, (NonASCII, ReorderedLine, ReorderedToken)) for nit in nits)
-    assert any(isinstance(nit, NonASCII) and nit.control_index == pos for nit in nits)
-    for nit in nits:
-        if isinstance(nit, NonASCII) and nit.control_index == pos:
-            assert unicodedata.category(text[nit.control_index]).startswith('C')
+    print(bad_parts)
+    assert len(bad_parts) >= 1
+    num_cc_nits = 0
+    for bp in bad_parts:
+        for nit in bp.nits_by_name('ControlCharacter'):
+            assert nit.control_char == control
+            assert bp.string[nit.offset] == control
+            assert text[bp.start_index + nit.offset] == control
+            num_cc_nits += 1
+    assert num_cc_nits == 1
 
 
 @given(
-    text(characters(
-        whitelist_categories=('Co', 'Cf', 'Cn', 'Cc'),
-        blacklist_characters=ALLOWED_CONTROL_CHARS,
+    text(one_of(
+        characters(
+            whitelist_categories=('Co', 'Cf', 'Cc'),
+            blacklist_characters=ALLOWED_CONTROL_CHARS,
+        ),
+        sampled_from('\U0001FF80'),
     )),
 )
 def test_all_control_chars(text):
-    nits = list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
-    print(nits)
-    assert len(nits) >= len(text)
-    assert all(isinstance(nit, (NonASCII, ReorderedLine, ReorderedToken)) for nit in nits)
-    if text:
-        assert any(isinstance(nit, NonASCII) for nit in nits)
+    bad_parts = list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
+    found_controls = []
+    for bp in bad_parts:
+        for nit in bp.nits_by_name('ControlCharacter'):
+            assert unicodedata.category(nit.control_char).startswith('C')
+            found_controls.append(nit.control_char)
+    assert sorted(text) == sorted(found_controls)
 
 
 @given(
@@ -88,178 +95,337 @@ def test_surrogates(text, pos, control):
 CASES = {
     's\N{CYRILLIC SMALL LETTER ES}ope': [
         {
-            'name': 'NonASCII',
+            'name': 'Token',
+            'type': 'name',
+            'row': 1,
+            'col': 0,
+            'start_index': 0,
+            'start': (1, 0),
+            'end_index': 5,
+            'end': (2, 0),  # XXX
             'string': 's\N{CYRILLIC SMALL LETTER ES}ope',
-            'token_type': 'name',
-            'ascii_lookalike': 'scope',
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ASCIILookalike',
+                    'lookalike': 'scope',
+                },
+            ],
         },
     ],
     'u"s\N{CYRILLIC SMALL LETTER ES}ope"': [
         {
-            'name': 'NonASCII',
+            'name': 'Token',
+            'type': 'string',
+            'row': 1,
+            'col': 0,
+            'start_index': 0,
+            'start': (1, 0),
+            'end_index': 8,
+            'end': (2, 0),
             'string': 'u"s\N{CYRILLIC SMALL LETTER ES}ope"',
-            'token_type': 'string',
-            'ascii_lookalike': 'u"scope"',
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ASCIILookalike',
+                    'lookalike': 'u"scope"',
+                },
+            ],
         },
     ],
     '\N{CYRILLIC CAPITAL LETTER ZHE}ohn': [
         {
-            'name': 'NonASCII',
+            'name': 'Token',
+            'type': 'name',
             'string': '\N{CYRILLIC CAPITAL LETTER ZHE}ohn',
-            'token_type': 'name',
-            'ascii_lookalike': None,
+            'nits': [
+                {'name': 'NonASCII'},
+            ],
         },
     ],
     "names = 'x\u02BB, \u02BBy' ": [
         {
-            'name': 'NonASCII',
+            'name': 'Token',
+            'type': 'string',
             'string': "'x\u02BB, \u02BBy'",
-            'token_type': 'string',
-            'ascii_lookalike': "'x', 'y'",
+            'row': 1,
+            'col': 8,
+            'start_index': 8,
+            'start': (1, 8),
+            'end_index': 16,
+            'end': (1, 16),
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ASCIILookalike',
+                    'lookalike': "'x', 'y'",
+                },
+            ],
         },
     ],
     "names = 'x\u02BB', '\u02BBy' ": [
         {
-            'name': 'NonASCII',
+            'name': 'Token',
+            'type': 'string',
             'string': "'x\u02BB'",
-            'token_type': 'string',
-            'ascii_lookalike': "'x''",
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ASCIILookalike',
+                    'lookalike': "'x''",
+                },
+            ],
         },
         {
-            'name': 'NonASCII',
+            'name': 'Token',
+            'type': 'string',
             'string': "'\u02BBy'",
-            'token_type': 'string',
-            'ascii_lookalike': "''y'",
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ASCIILookalike',
+                    'lookalike': "''y'",
+                },
+            ],
         },
     ],
     "int('৪୨')": [
         {
-            'name': 'NonASCII',
+            'name': 'Token',
+            'type': 'string',
             'string': "'৪୨'",
-            'token_type': 'string',
-            'ascii_lookalike': "'89'",
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ASCIILookalike',
+                    'lookalike': "'89'",
+                },
+            ],
         },
     ],
     "'\N{HEBREW LETTER ALEF}\N{HEBREW LETTER GIMEL}'": [
-        {'name': 'NonASCII', 'string': "'\N{HEBREW LETTER ALEF}\N{HEBREW LETTER GIMEL}'"},
         {
-            'name': 'ReorderedToken',
+            'name': 'Token',
+            'type': 'string',
             'string': "'\N{HEBREW LETTER ALEF}\N{HEBREW LETTER GIMEL}'",
-            'reordered': "'\N{HEBREW LETTER GIMEL}\N{HEBREW LETTER ALEF}'",
-            'token_type': 'string',
+            'string_safe': r"'\u05d0\u05d2'",
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ReorderedToken',
+                    'reordered': "'\N{HEBREW LETTER GIMEL}\N{HEBREW LETTER ALEF}'",
+                    'reordered_safe': r"'\u05d2\u05d0'",
+                    'reordered_safe_underline': None,
+                },
+            ],
         },
-        {'name': 'ReorderedLine', 'lineno': 1},
+        {
+            'name': 'Line',
+            'string': "'\N{HEBREW LETTER ALEF}\N{HEBREW LETTER GIMEL}'",
+            'string_safe': r"'\u05d0\u05d2'",
+            'nits': [
+                {
+                    'name': 'ReorderedLine',
+                    'reordered': "'\N{HEBREW LETTER GIMEL}\N{HEBREW LETTER ALEF}'",
+                    'reordered_safe': r"'\u05d2\u05d0'",
+                    'reordered_safe_underline': None,
+                },
+            ],
+        },
     ],
     """'zz\N{HEBREW LETTER ALEF} -' + '- \N{HEBREW LETTER GIMEL}zz'""": [
-        {'name': 'NonASCII'},
         {
-            'name': 'ReorderedToken',
+            'name': 'Token',
+            'type': 'string',
             'string': "'zz\N{HEBREW LETTER ALEF} -'",
-            'reordered_repr': dedent(r"""
-                The token is:
-                    'zz\u05d0 -'
-                but appears as:
-                    'zz\u05d2 -' + '- \u05d0
-                    ^^^            ^^^^^^^^^
-                    (characters without ^ below aren't part of the token)
-                where:
-                    \u05d2 is HEBREW LETTER GIMEL
-                    \u05d0 is HEBREW LETTER ALEF
-            """).strip(),
-            'reordered': "'zz\N{HEBREW LETTER GIMEL} -' + '- \N{HEBREW LETTER ALEF}",
-            'token_type': 'string',
+            'string_safe': r"'zz\u05d0 -'",
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ReorderedToken',
+                    'reordered': "'zz\N{HEBREW LETTER GIMEL} -' + '- \N{HEBREW LETTER ALEF}",
+                    'reordered_safe': r"'zz\u05d2 -' + '- \u05d0",
+                    'reordered_safe_underline':
+                                      r"^^^            ^^^^^^^^^",
+                },
+            ],
         },
-        {'name': 'ReorderedLine', 'lineno': 1},
-        {'name': 'NonASCII'},
         {
-            'name': 'ReorderedToken',
+            # XXX
+            'name': 'Line',
+            'string': """'zz\N{HEBREW LETTER ALEF} -' + '- \N{HEBREW LETTER GIMEL}zz'""",
+            'string_safe': r"""'zz\u05d0 -' + '- \u05d2zz'""",
+            'nits': [
+                {
+                    'name': 'ReorderedLine',
+                    'reordered': """'zz\N{HEBREW LETTER GIMEL} -' + '- \N{HEBREW LETTER ALEF}zz'""",
+                    'reordered_safe': r"""'zz\u05d2 -' + '- \u05d0zz'""",
+                    'reordered_safe_underline': None,
+                },
+            ],
+        },
+        {
+            'name': 'Token',
+            'type': 'string',
             'string': "'- \N{HEBREW LETTER GIMEL}zz'",
-            'reordered_repr': dedent(r"""
-                The token is:
-                    '- \u05d2zz'
-                but appears as:
-                    \u05d2 -' + '- \u05d0zz'
-                    ^^^^^^^^^            ^^^
-                    (characters without ^ below aren't part of the token)
-                where:
-                    \u05d2 is HEBREW LETTER GIMEL
-                    \u05d0 is HEBREW LETTER ALEF
-            """).strip(),
-            'reordered': "\N{HEBREW LETTER GIMEL} -' + '- \N{HEBREW LETTER ALEF}zz'",
-            'token_type': 'string',
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ReorderedToken',
+                    'reordered': "\N{HEBREW LETTER GIMEL} -' + '- \N{HEBREW LETTER ALEF}zz'",
+                    'reordered_safe': r"\u05d2 -' + '- \u05d0zz'",
+                    'reordered_safe_underline':
+                                      r"^^^^^^^^^            ^^^",
+                },
+            ],
         },
     ],
     "'\N{HEBREW LETTER ALEF}' * 1_9 + '\N{HEBREW LETTER ALEF}'": [
-        {'name': 'NonASCII', 'string': "'\N{HEBREW LETTER ALEF}'"},
-        {'name': 'ReorderedLine', 'lineno': 1},
         {
-            'name': 'ReorderedToken',
-            'string': "1_9",
-            'reordered': "9_1",
-            'token_type': 'number',
+            'name': 'Token',
+            'type': 'string',
+            'string': "'\N{HEBREW LETTER ALEF}'",
+            'nits': [
+                {'name': 'NonASCII'},
+            ],
         },
-         {'name': 'NonASCII', 'string': "'\N{HEBREW LETTER ALEF}'"},
+        {
+            'name': 'Line',
+            'string': "'\N{HEBREW LETTER ALEF}' * 1_9 + '\N{HEBREW LETTER ALEF}'",
+            'nits': [
+                {
+                    'name': 'ReorderedLine',
+                    'reordered': "'\N{HEBREW LETTER ALEF}' + 9_1 * '\N{HEBREW LETTER ALEF}'",
+                    'reordered_safe': r"'\u05d0' + 9_1 * '\u05d0'",
+                    'reordered_safe_underline': None,
+                },
+            ],
+        },
+        {
+            'name': 'Token',
+            'type': 'number',
+            'string': "1_9",
+            'string_safe': "1_9",
+            'nits': [
+                {
+                    'name': 'ReorderedToken',
+                    'reordered': "9_1",
+                    'reordered_safe': r"9_1",
+                    'reordered_safe_underline': None,
+                },
+            ],
+        },
+        {
+            'name': 'Token',
+            'type': 'string',
+            'string': "'\N{HEBREW LETTER ALEF}'",
+            'nits': [
+                {'name': 'NonASCII'},
+            ],
+        },
     ],
     "\N{HEBREW LETTER ALEF} + \N{HEBREW LETTER GIMEL}": [
-        {'name': 'NonASCII', 'string': "\N{HEBREW LETTER ALEF}"},
         {
-            'name': 'ReorderedLine',
-            'lineno': 1,
-            'string': "\N{HEBREW LETTER ALEF} + \N{HEBREW LETTER GIMEL}",
-            'reordered': "\N{HEBREW LETTER GIMEL} + \N{HEBREW LETTER ALEF}",
+            'name': 'Token',
+            'type': 'name',
+            'string': "\N{HEBREW LETTER ALEF}",
+            'nits': [
+                {'name': 'NonASCII'},
+            ],
         },
-        {'name': 'NonASCII', 'string': "\N{HEBREW LETTER GIMEL}"},
+        {
+            'name': 'Line',
+            'lineno': 1,
+            'nits': [
+                {
+                    'name': 'ReorderedLine',
+                    'reordered': "\N{HEBREW LETTER GIMEL} + \N{HEBREW LETTER ALEF}",
+                    'reordered_safe': r"\u05d2 + \u05d0",
+                    'reordered_safe_underline': None,
+                },
+            ],
+        },
+        {
+            'name': 'Token',
+            'type': 'name',
+            'string': "\N{HEBREW LETTER GIMEL}",
+            'nits': [
+                {'name': 'NonASCII'},
+            ],
+        },
     ],
     "\N{LATIN SMALL LIGATURE FI} = 'u\N{COMBINING DIAERESIS}'": [
         {
-            'name': 'PrecisFail',
+            'name': 'Token',
+            'type': 'name',
             'string': "\N{LATIN SMALL LIGATURE FI}",
-            'reason': "DISALLOWED/has_compat",
-            'nfkc': "fi",
+            'nits': [
+                {
+                    'name': 'PolicyFail',
+                    'reason': "DISALLOWED/has_compat",
+                },
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ASCIILookalike',
+                    'lookalike': "fi",
+                },
+                {
+                    'name': 'NonNFKC',
+                    'normalized': "fi",
+                    'normalized_safe': "fi",
+                },
+            ],
         },
         {
-            'name': 'NonASCII',
-            'string': "\N{LATIN SMALL LIGATURE FI}",
-            'nfkc': "fi",
-        },
-        {
-            'name': 'NonASCII',
+            'name': 'Token',
+            'type': 'string',
             'string': "'u\N{COMBINING DIAERESIS}'",
-            'nfkc': "'\N{LATIN SMALL LETTER U WITH DIAERESIS}'",
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'NonNFKC',
+                    'normalized': "'\N{LATIN SMALL LETTER U WITH DIAERESIS}'",
+                    'normalized_safe': r"'\xfc'",
+                },
+            ],
         },
     ],
-    "print(len((lambda x,\N{HANGUL FILLER}: (\N{HANGUL FILLER},))(1, 2)))": [
+    "print(len((lambda x,\N{HANGUL FILLER}: (\N{HANGUL FILLER},))(1, 2)))": 2*[
         {
-            'name': 'PrecisFail',
+            'name': 'Token',
+            'type': 'name',
             'string': "\N{HANGUL FILLER}",
-            'reason': "DISALLOWED/precis_ignorable_properties",
-            'nfkc': "\N{HANGUL JUNGSEONG FILLER}",
-        },
-        {
-            'name': 'NonASCII',
-            'string': "\N{HANGUL FILLER}",
-        },
-        {
-            'name': 'PrecisFail',
-            'string': "\N{HANGUL FILLER}",
-            'reason': "DISALLOWED/precis_ignorable_properties",
-            'nfkc': "\N{HANGUL JUNGSEONG FILLER}",
-        },
-        {
-            'name': 'NonASCII',
-            'string': "\N{HANGUL FILLER}",
+            'nits': [
+                {
+                    'name': 'PolicyFail',
+                    'reason': "DISALLOWED/precis_ignorable_properties",
+                },
+                {'name': 'NonASCII'},
+                {
+                    'name': 'NonNFKC',
+                    'normalized': "\N{HANGUL JUNGSEONG FILLER}",
+                    'normalized_safe': r"\u1160",
+                },
+            ],
         },
     ],
     "'\U0001FF80'": [
         {
-            'name': 'PrecisFail',
+            'name': 'Token',
+            'type': 'string',
             'string': "'\U0001FF80'",
-            'reason': "DISALLOWED/unassigned",
-            'nfkc': "'\U0001FF80'",
-        },
-        {
-            'name': 'NonASCII',
-            'string': "'\U0001FF80'",
+            'nits': [
+                {
+                    'name': 'PolicyFail',
+                    'reason': "DISALLOWED/unassigned",
+                },
+                {
+                    'name': 'ControlCharacter',
+                    'offset': 1,
+                    'control_char': "\U0001FF80",
+                },
+                {'name': 'NonASCII'},
+            ],
         },
     ],
     """
@@ -267,15 +433,36 @@ CASES = {
         Klock
     """: [
         {
-            'name': 'NonASCII',
+            'name': 'Token',
+            'type': 'name',
             'string': "\N{KELVIN SIGN}lock",
-            'row': 2,
-            'col': 8,
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ASCIILookalike',
+                    'lookalike': "Klock",
+                },
+                {
+                    'name': 'NonNFKC',
+                    'normalized': "Klock",
+                    'normalized_safe': r"Klock",
+                },
+            ],
         },
         {
-            'name': 'NonASCII',
+            'name': 'Token',
+            'type': 'name',
             'string': "Klock",
-            'previous_pos': (2, 8),
+            'nits': [
+                {
+                    'name': 'HasLookalike',
+                    'other_token': {
+                        'name': 'Token',
+                        'type': 'name',
+                        'string': "\N{KELVIN SIGN}lock"
+                    },
+                },
+            ],
         },
     ],
 }
@@ -283,16 +470,33 @@ CASES = {
 @pytest.mark.parametrize('source', CASES)
 def test_cases(source):
     expected = CASES[source]
-    nits = list(lint_text('test', source, tokenize, PythonProfile.token_string_profiles))
-    print(nits)
-    assert len(nits) == len(expected)
-    for nit, exp in zip(nits, expected):
-        for attr, value in exp.items():
-            assert getattr(nit, attr) == value
+    bad_parts = list(lint_text('test', source, tokenize, PythonProfile.token_string_profiles))
+    assert_result_matches(bad_parts, expected)
 
+def assert_result_matches(got, expected, path=''):
+    if isinstance(expected, list):
+        assert len(got) == len(expected)
+        for i, (g, e) in enumerate(zip(got, expected)):
+            assert_result_matches(g, e, f'{path}[{i}]')
+    elif isinstance(expected, dict):
+        for attr_name, e in expected.items():
+            assert_result_matches(
+                getattr(got, attr_name), e, f'{path}.{attr_name}',
+            )
+    else:
+        assert expected == got
 
 @given(characters(blacklist_characters="'\\"))
 def test_safe_char_repr(char):
     result = safe_char_repr(char)
     assert literal_eval("'" + result + "'") == char
     assert re.fullmatch(r'[ -~]+', result)
+
+
+@given(text(characters(blacklist_characters='\\"')))
+def test_safe_char_reprs(char):
+    result = "".join(safe_char_reprs(char))
+    assert literal_eval('"' + result + '"') == char
+    assert re.fullmatch(r'[ -~]*', result)
+    assert not result.startswith(' ')
+    assert not result.endswith(' ')

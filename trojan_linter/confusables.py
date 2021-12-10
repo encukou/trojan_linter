@@ -1812,7 +1812,4 @@ ascii_confusable_map = {
     0x13c3: 'Z',  # \N{CHEROKEE LETTER NO}
     0xa4dc: 'Z',  # \N{LISU LETTER DZA}
     0x118a9: 'Z',  # \N{WARANG CITI CAPITAL LETTER O}
-    0x3164: ' ',  # \N{HANGUL FILLER}
-    0x1160: ' ',  # \N{HANGUL JUNGSEONG FILLER}
-    0xffa0: ' ',  # \N{HALFWIDTH HANGUL FILLER}
 }
