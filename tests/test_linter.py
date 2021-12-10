@@ -22,7 +22,7 @@ clean_ascii_text = text(one_of(
 
 @given(clean_ascii_text)
 def test_clean_ascii(text):
-    assert list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles)) == []
+    assert list(lint_text('test', text, tokenize, TestingProfile.token_profiles)) == []
 
 
 @given(
@@ -42,7 +42,7 @@ def test_control_chars(text, pos, control):
     pos %= len(text) + 1
     text = text[:pos] + control + text[pos:]
     try:
-        bad_parts = list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
+        bad_parts = list(lint_text('test', text, tokenize, TestingProfile.token_profiles))
     except SyntaxError:
         with pytest.raises((SyntaxError, ValueError)):
             compile(text, 'test', 'exec')
@@ -69,7 +69,7 @@ def test_control_chars(text, pos, control):
     )),
 )
 def test_all_control_chars(text):
-    bad_parts = list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
+    bad_parts = list(lint_text('test', text, tokenize, TestingProfile.token_profiles))
     found_controls = []
     for bp in bad_parts:
         for nit in bp.nits_by_name('ControlCharacter'):
@@ -89,7 +89,7 @@ def test_surrogates(text, pos, control):
     pos %= len(text) + 1
     text = text[:pos] + control + text[pos:]
     with pytest.raises(UnicodeError):
-        list(lint_text('test', text, tokenize, TestingProfile.token_string_profiles))
+        list(lint_text('test', text, tokenize, TestingProfile.token_profiles))
 
 
 CASES = {
@@ -505,7 +505,7 @@ CASES = {
             'py_delimiter': "'",
             'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
             'py_flags': {'u'},
-            'nits': [{'name': 'NonASCII'}],
+            'nits': [{'name': 'HasLookalike'}, {'name': 'NonASCII'}],
         },
         {
             'name': 'StringToken',
@@ -514,7 +514,7 @@ CASES = {
             'py_delimiter': '"',
             'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
             'py_flags': {'u'},
-            'nits': [{'name': 'NonASCII'}],
+            'nits': [{'name': 'HasLookalike'}, {'name': 'NonASCII'}],
         },
         {
             'name': 'StringToken',
@@ -523,7 +523,7 @@ CASES = {
             'py_delimiter': "'",
             'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
             'py_flags': {'r', 'f'},
-            'nits': [{'name': 'NonASCII'}],
+            'nits': [{'name': 'HasLookalike'}, {'name': 'NonASCII'}],
         },
         {
             'name': 'StringToken',
@@ -532,7 +532,7 @@ CASES = {
             'py_delimiter': "'",
             'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
             'py_flags': {'b'},
-            'nits': [{'name': 'NonASCII'}],
+            'nits': [{'name': 'HasLookalike'}, {'name': 'NonASCII'}],
         },
         {
             'name': 'StringToken',
@@ -541,7 +541,7 @@ CASES = {
             'py_delimiter': "'",
             'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
             'py_flags': {'r'},
-            'nits': [{'name': 'NonASCII'}],
+            'nits': [{'name': 'HasLookalike'}, {'name': 'NonASCII'}],
         },
         {
             'name': 'StringToken',
@@ -550,7 +550,49 @@ CASES = {
             'py_delimiter': "'",
             'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
             'py_flags': {'r', 'f'},
-            'nits': [{'name': 'NonASCII'}],
+            'nits': [{'name': 'HasLookalike'}, {'name': 'NonASCII'}],
+        },
+    ],
+    """
+        fi
+        f'\N{LATIN SMALL LIGATURE FI}'
+        hasattr(foo, '\N{LATIN SMALL LIGATURE FI}')
+    """: [
+        {
+            'name': 'StringToken',
+            'type': 'string',
+            'string': "f'\N{LATIN SMALL LIGATURE FI}'",
+            'nits': [
+                {
+                    'name': 'PolicyFail',
+                    'reason': "DISALLOWED/has_compat",
+                },
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ASCIILookalike',
+                    'lookalike': "f'fi'",
+                },
+                {
+                    'name': 'NonNFKC',
+                    'normalized': "f'fi'",
+                },
+            ],
+        },
+        {
+            'name': 'StringToken',
+            'type': 'string',
+            'string': "'\N{LATIN SMALL LIGATURE FI}'",
+            'nits': [
+                {'name': 'NonASCII'},
+                {
+                    'name': 'ASCIILookalike',
+                    'lookalike': "'fi'",
+                },
+                {
+                    'name': 'NonNFKC',
+                    'normalized': "'fi'",
+                },
+            ],
         },
     ],
 }
@@ -558,7 +600,7 @@ CASES = {
 @pytest.mark.parametrize('source', CASES)
 def test_cases(source):
     expected = CASES[source]
-    bad_parts = list(lint_text('test', source, tokenize, PythonProfile.token_string_profiles))
+    bad_parts = list(lint_text('test', source, tokenize, PythonProfile.token_profiles))
     assert_result_matches(bad_parts, expected)
 
 def assert_result_matches(got, expected, path=''):

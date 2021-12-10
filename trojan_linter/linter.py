@@ -45,7 +45,7 @@ class LineMap:
         return line_start + col
 
 
-def lint_text(name, text, tokenizer, token_string_profiles):
+def lint_text(name, text, tokenizer, token_profiles):
     linemap = None
     def _get_linemap():
         nonlocal linemap
@@ -66,25 +66,24 @@ def lint_text(name, text, tokenizer, token_string_profiles):
         # print('l2v', list(bidi_l2v_map))
         # print('v2l', list(bidi_v2l_map))
 
-    # {token_type: {normalized_string: token}}
-    seen_tokens = {}
+    # {normalized_string: token}
+    seen_token_skeletons = {}
 
     last_visual_start = -1
     reordered_lines = set()
     for token in tokenizer(text, linemap):
         if token.string:
             try:
-                normalized = token_string_profiles[token.type](token.string)
-            except UnicodeEncodeError as e:
-                token.nits.append(nits.PolicyFail(token, e.reason))
+                normalized = token_profiles[token.type](token)
+            except ValueError as e:
+                token.nits.append(nits.PolicyFail(token, str(e)))
                 normalized = None
             if normalized is not None:
-                seen = seen_tokens.setdefault(token.type, {})
-                previous_token = seen.get(normalized)
+                previous_token = seen_token_skeletons.get(normalized)
                 if previous_token and previous_token.string != token.string:
                     token.nits.append(nits.HasLookalike(token, previous_token))
                 else:
-                    seen[normalized] = token
+                    seen_token_skeletons[normalized] = token
 
         control_match = ANY_CONTROL_RE.search(token.string)
         if control_match:
