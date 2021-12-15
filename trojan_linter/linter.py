@@ -46,14 +46,19 @@ class LineMap:
         return line_start + col
 
 
-def lint_path(filename, profile):
-    with profile.open_file(filename) as file:
-        text = file.read()
-        if file.encoding not in ('ascii', 'utf-8'):
-            code_part = nits.File(filename, text)
-            code_part.nits.append(nits.UnusualEncoding(file.encoding))
-            yield code_part
-        yield from lint_text(filename, text, profile)
+def lint_path(path, profile):
+    if path.is_dir():
+        for child in sorted(path.iterdir()):
+            if child.is_dir() or profile.handles_file(child):
+                yield from lint_path(child, profile)
+    else:
+        with profile.open_file(path) as file:
+            text = file.read()
+            if file.encoding not in ('ascii', 'utf-8'):
+                code_part = nits.File(path, text)
+                code_part.nits.append(nits.UnusualEncoding(file.encoding))
+                yield code_part
+            yield from lint_text(path, text, profile)
 
 
 def lint_text(name, text, profile):

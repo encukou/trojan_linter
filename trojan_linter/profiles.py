@@ -1,11 +1,13 @@
 import tokenize as py_tokenize
+from pathlib import Path
 
 import precis_i18n
 
 from . import tokenize_python
 
 class Profile:
-    pass
+    def handles_file(self, filename):
+        return True
 
 _opaque_precis_profile = precis_i18n.get_profile('OpaqueString')
 _username_precis_profile = precis_i18n.get_profile('UsernameCasePreserved')
@@ -63,6 +65,9 @@ class PythonProfile(Profile):
 
     def open_file(self, filename):
         return py_tokenize.open(filename)
+
+    def handles_file(self, filename):
+        return Path(filename).suffix == '.py'
 
     token_profiles = {
         'name': username_token_profile,
