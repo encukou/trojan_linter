@@ -51,7 +51,7 @@ def lint_path(filename, profile):
         text = file.read()
         if file.encoding not in ('ascii', 'utf-8'):
             code_part = nits.File(filename, text)
-            code_part.nits.append(nits.UnusualEncoding(code_part, file.encoding))
+            code_part.nits.append(nits.UnusualEncoding(file.encoding))
             yield code_part
         yield from lint_text(filename, text, profile)
 
@@ -89,29 +89,30 @@ def lint_text(name, text, profile):
             try:
                 normalized = token_profiles[token.type](token)
             except ValueError as e:
-                token.nits.append(nits.PolicyFail(token, str(e)))
+                token.nits.append(nits.PolicyFail(str(e)))
                 normalized = None
             if normalized is not None:
                 previous_token = seen_token_skeletons.get(normalized)
                 if previous_token and previous_token.string != token.string:
-                    token.nits.append(nits.HasLookalike(token, previous_token))
+                    token.nits.append(nits.HasLookalike(previous_token))
                 else:
                     seen_token_skeletons[normalized] = token
 
         control_match = ANY_CONTROL_RE.search(token.string)
         if control_match:
+            i = token.start_index + control_match.start()
             token.nits.append(nits.ControlCharacter(
-                token, control_match.start()))
+                control_match.start(), text[i]))
         if not token.string.isascii():
-            token.nits.append(nits.NonASCII(token))
+            token.nits.append(nits.NonASCII())
             nfd = unicodedata.normalize('NFD', token.string)
             mapped = nfd.translate(ascii_confusable_map)
             if mapped.isascii() and mapped != token.string:
-                token.nits.append(nits.ASCIILookalike(token, mapped))
+                token.nits.append(nits.ASCIILookalike(mapped))
 
             nfkc = unicodedata.normalize('NFKC', token.string)
             if nfkc != token.string:
-                token.nits.append(nits.NonNFKC(token, nfkc))
+                token.nits.append(nits.NonNFKC(nfkc))
 
         if bidi_l2v_map:
             if len(token.string) > 1:
@@ -122,7 +123,7 @@ def lint_text(name, text, profile):
                 )
                 if reordered_string != token.string:
                     token.nits.append(nits.ReorderedToken(
-                        token, reordered_string,
+                        reordered_string,
                         reordered_char_in_token,
                     ))
 
@@ -142,7 +143,7 @@ def lint_text(name, text, profile):
                         line.end_index,
                     )
                     line.nits.append(nits.ReorderedLine(
-                        line, reordered_string, reordered_char_in_token,
+                        reordered_string, reordered_char_in_token,
                     ))
                     yield line
                     reordered_lines.add(lineno)

@@ -142,9 +142,6 @@ class File(CodePart):
 
 
 class Nit:
-    def __init__(self, code_part):
-        self.code_part = code_part
-
     def __repr__(self):
         return f"<{type(self).__name__}>"
 
@@ -152,19 +149,16 @@ class Nit:
         cls.name = cls.__name__
 
 class ControlCharacter(Nit):
-    def __init__(self, code_part, offset):
-        super().__init__(code_part)
+    def __init__(self, offset, control_char):
         self.offset = offset
-        i = self.code_part.start_index + offset
-        self.control_char = self.code_part.source[i]
+        self.control_char = control_char
 
     def format_lines(self, chars_to_explain):
         yield '  contains a control character'
         yield '    (possibly invisible and/or affecting nearby text)'
 
 class _Reordered(Nit):
-    def __init__(self, code_part, reordered, reordered_char_in_token):
-        super().__init__(code_part)
+    def __init__(self, reordered, reordered_char_in_token):
         self.reordered = reordered
         self.reordered_char_in_token = reordered_char_in_token
 
@@ -201,15 +195,11 @@ class ReorderedLine(_Reordered):
     pass
 
 class NonASCII(Nit):
-    def __init__(self, code_part):
-        super().__init__(code_part)
-
     def format_lines(self, chars_to_explain):
         yield '  is not ASCII'
 
 class ASCIILookalike(Nit):
-    def __init__(self, code_part, lookalike):
-        super().__init__(code_part)
+    def __init__(self, lookalike):
         self.lookalike = lookalike
 
     def format_lines(self, chars_to_explain):
@@ -217,13 +207,11 @@ class ASCIILookalike(Nit):
         yield f'    {self.lookalike}'
 
 class HasLookalike(Nit):
-    def __init__(self, code_part, other_token):
-        super().__init__(code_part)
+    def __init__(self, other_token):
         self.other_token = other_token
 
 class NonNFKC(Nit):
-    def __init__(self, code_part, normalized):
-        super().__init__(code_part)
+    def __init__(self, normalized):
         self.normalized = normalized
 
     @cached_property
@@ -235,16 +223,14 @@ class NonNFKC(Nit):
         yield f'    {format_string(self.normalized, chars_to_explain)}'
 
 class PolicyFail(Nit):
-    def __init__(self, code_part, reason):
-        super().__init__(code_part)
+    def __init__(self, reason):
         self.reason = reason
 
     def format_lines(self, chars_to_explain):
         yield f'  fails policy: {self.reason}'
 
 class UnusualEncoding(Nit):
-    def __init__(self, code_part, encoding):
-        super().__init__(code_part)
+    def __init__(self, encoding):
         self.encoding = encoding
 
     def format_lines(self, chars_to_explain):
