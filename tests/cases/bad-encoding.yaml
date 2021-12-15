@@ -1,0 +1,6 @@
+source: |
+    # encoding: ascii
+    ňóť←äçṫůàłĺʎ→âšċïï
+expected_stdout: |
+          data.src: WARNING: this file
+            cannot be read: 'ascii' codec can't decode byte 0xc5 in position 18: ordinal not in range(128)

@@ -247,3 +247,10 @@ class UnusualEncoding(Nit):
         yield '  has an unusual encoding:'
         yield f'    {self.encoding}'
         yield '    (possibly hiding other issues in the source)'
+
+class Unreadable(Nit):
+    def __init__(self, problem):
+        self.problem = problem
+
+    def format_lines(self, chars_to_explain):
+        yield f'  cannot be read: {self.problem}'
