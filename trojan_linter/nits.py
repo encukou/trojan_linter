@@ -11,7 +11,7 @@ def safe_char_repr(char, chars_to_explain, min_passthru=32):
     if min_passthru <= codepoint < 127:
         return char
     if char == '\n':
-        return '\\n'
+        char_repr = '\\n'
     elif codepoint <= 0xff:
         char_repr = f'\\x{codepoint:02x}'
     elif codepoint <= 0xffff:
@@ -110,12 +110,15 @@ class Line(CodePart):
     def __init__(self, source, linemap, lineno):
         start_index = linemap.row_col_to_index(lineno, 0)
         end_index = linemap.row_col_to_index(lineno + 1, 0)
+        if source[end_index-1:end_index] == '\n':
+            # Final newline isn't part of the string
+            end_index -= 1
         super().__init__(source, linemap, start_index, end_index)
         self.lineno = lineno
 
     @cached_property
     def string(self):
-        return self.source[self.start_index:self.end_index].rstrip('\n')
+        return self.source[self.start_index:self.end_index]
 
     def __repr__(self):
         return f"<{type(self).__name__} {self.row}: {self._repr_nits()}>"

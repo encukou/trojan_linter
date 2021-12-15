@@ -19,7 +19,7 @@ expected_stdout: |
           data.src:2: WARNING: line 2
               s = "\u05d0" * 100 #    "\u05d0" is assigned
             is reordered; it appears as:
-              s = "\u05d0"    # 100 * "\u05d0" is assigned\x0a
+              s = "\u05d0"    # 100 * "\u05d0" is assigned
             where:
               \u05d0 is HEBREW LETTER ALEF
           data.src:2:14: WARNING: comment token
@@ -43,7 +43,7 @@ expected_stdout: |
           data.src:3: WARNING: line 3
               \u05e2\u05e8\u05da = 23
             is reordered; it appears as:
-              \x0a23 = \u05da\u05e8\u05e2
+              23 = \u05da\u05e8\u05e2
             where:
               \u05da is HEBREW LETTER FINAL KAF
               \u05e2 is HEBREW LETTER AYIN
@@ -61,7 +61,7 @@ expected_stdout: |
           data.src:4: WARNING: line 4
               \u0642\u064a\u0645\u0629 = \u05e2\u05e8\u05da
             is reordered; it appears as:
-              \x0a\u05da\u05e8\u05e2 = \u0629\u0645\u064a\u0642
+              \u05da\u05e8\u05e2 = \u0629\u0645\u064a\u0642
             where:
               \u05da is HEBREW LETTER FINAL KAF
               \u05e2 is HEBREW LETTER AYIN
@@ -92,7 +92,7 @@ expected_stdout: |
           data.src:5: WARNING: line 5
               \u0642\u064a\u0645\u0629 - (\u05e2\u05e8\u05da ** 2)
             is reordered; it appears as:
-              \x0a)2 ** \u05da\u05e8\u05e2( - \u0629\u0645\u064a\u0642
+              )2 ** \u05da\u05e8\u05e2( - \u0629\u0645\u064a\u0642
             where:
               \u05da is HEBREW LETTER FINAL KAF
               \u05e2 is HEBREW LETTER AYIN
@@ -125,7 +125,7 @@ expected_stdout: |
           data.src:6: WARNING: line 6
               s = "x\u200f" * 100 #    "\u200fx" is assigned
             is reordered; it appears as:
-              s = "x\u200f"    # 100 * "\u200fx" is assigned\x0a
+              s = "x\u200f"    # 100 * "\u200fx" is assigned
             where:
               \u200f is RIGHT-TO-LEFT MARK
           data.src:6:15: WARNING: comment token
