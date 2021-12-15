@@ -503,7 +503,7 @@ CASES = {
             'py_delimiter': "'",
             'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
             'py_flags': {'u'},
-            'nits': [{'name': 'HasLookalike'}, {'name': 'NonASCII'}],
+            'nits': [{'name': 'NonASCII'}],
         },
         {
             'name': 'StringToken',
@@ -512,7 +512,7 @@ CASES = {
             'py_delimiter': '"',
             'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
             'py_flags': {'u'},
-            'nits': [{'name': 'HasLookalike'}, {'name': 'NonASCII'}],
+            'nits': [{'name': 'NonASCII'}],
         },
         {
             'name': 'StringToken',
@@ -521,7 +521,7 @@ CASES = {
             'py_delimiter': "'",
             'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
             'py_flags': {'r', 'f'},
-            'nits': [{'name': 'HasLookalike'}, {'name': 'NonASCII'}],
+            'nits': [{'name': 'NonASCII'}],
         },
         {
             'name': 'StringToken',
@@ -530,7 +530,7 @@ CASES = {
             'py_delimiter': "'",
             'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
             'py_flags': {'b'},
-            'nits': [{'name': 'HasLookalike'}, {'name': 'NonASCII'}],
+            'nits': [{'name': 'NonASCII'}],
         },
         {
             'name': 'StringToken',
@@ -539,7 +539,7 @@ CASES = {
             'py_delimiter': "'",
             'py_content': '\N{LATIN SMALL LETTER U WITH DIAERESIS}',
             'py_flags': {'r'},
-            'nits': [{'name': 'HasLookalike'}, {'name': 'NonASCII'}],
+            'nits': [{'name': 'NonASCII'}],
         },
         {
             'name': 'StringToken',

@@ -36,12 +36,17 @@ def python_string_profile(token):
         profile = _opaque_precis_profile
     try:
         result = []
-        for line in token.py_content.splitlines():
+        for line in token.py_content.split('\n'):
             if line:
-                result.append(profile.enforce(token.py_content))
+                result.append(profile.enforce(line))
             else:
                 result.append(line)
-        return ''.join(result)
+        return ''.join((
+            *sorted(token.py_flags),
+            token.py_delimiter,
+            '\n'.join(result),
+            token.py_delimiter,
+        ))
     except UnicodeEncodeError as e:
         raise ValueError(e.reason)
 

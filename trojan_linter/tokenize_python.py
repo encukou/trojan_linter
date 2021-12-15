@@ -12,14 +12,18 @@ import regex
 from .nits import Token
 
 STRING_RE = regex.compile(
-    r'''(?P<flags>[^'"]*)(?P<delim>('|"){3}|'(?!')|"(?!"))(?P<content>.*)(?P=delim)''',
+    r'''(?P<flags>[^'"]*)(?P<delim>('|"){3}|'|")(?P<content>.*)(?P=delim)''',
     regex.DOTALL,
 )
 
 class StringToken(Token):
     @cached_property
     def _py_info(self):
-        return STRING_RE.fullmatch(self.string).groupdict()
+        try:
+            return STRING_RE.fullmatch(self.string).groupdict()
+        except AttributeError:
+            print(repr(self.string))
+            raise
 
     @cached_property
     def py_delimiter(self):

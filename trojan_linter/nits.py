@@ -10,7 +10,9 @@ def safe_char_repr(char, chars_to_explain, min_passthru=32):
     codepoint = ord(char)
     if min_passthru <= codepoint < 127:
         return char
-    if codepoint <= 0xff:
+    if char == '\n':
+        return '\\n'
+    elif codepoint <= 0xff:
         char_repr = f'\\x{codepoint:02x}'
     elif codepoint <= 0xffff:
         char_repr = f'\\u{codepoint:04x}'
@@ -209,6 +211,11 @@ class ASCIILookalike(Nit):
 class HasLookalike(Nit):
     def __init__(self, other_token):
         self.other_token = other_token
+
+    def format_lines(self, chars_to_explain):
+        ot = self.other_token
+        yield f'  looks like {ot.type} on {ot.row}:{ot.col}:'
+        yield f'    {format_string(ot.string, chars_to_explain)}'
 
 class NonNFKC(Nit):
     def __init__(self, normalized):

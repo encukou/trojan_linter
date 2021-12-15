@@ -54,7 +54,7 @@ def lint_path(path, profile):
     else:
         with profile.open_file(path) as file:
             text = file.read()
-            if file.encoding not in ('ascii', 'utf-8'):
+            if file.encoding not in ('ascii', 'utf-8', 'utf8'):
                 code_part = nits.File(path, text)
                 code_part.nits.append(nits.UnusualEncoding(file.encoding))
                 yield code_part
