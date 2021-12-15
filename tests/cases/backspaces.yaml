@@ -1,0 +1,26 @@
+source: "ko()\b\b\b\b# OK"
+expected_stdout: |
+          data.src:1:4: WARNING: op token
+              \x08
+            contains a control character
+              (possibly invisible and/or affecting nearby text)
+            where:
+              \x08 is unnnamed/unassigned
+          data.src:1:5: WARNING: op token
+              \x08
+            contains a control character
+              (possibly invisible and/or affecting nearby text)
+            where:
+              \x08 is unnnamed/unassigned
+          data.src:1:6: WARNING: op token
+              \x08
+            contains a control character
+              (possibly invisible and/or affecting nearby text)
+            where:
+              \x08 is unnnamed/unassigned
+          data.src:1:7: WARNING: op token
+              \x08
+            contains a control character
+              (possibly invisible and/or affecting nearby text)
+            where:
+              \x08 is unnnamed/unassigned

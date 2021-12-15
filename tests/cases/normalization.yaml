@@ -1,0 +1,54 @@
+source: |
+    xⁿ = 8
+    print(xn)
+    Test().ﬁnalize()
+    getattr(Test(), 'ﬁnalize')
+    import ﬁnalization
+    importlib.import_module("ﬁnalization")
+expected_stdout: |
+          data.src:1:0: WARNING: name token
+              x\u207f
+            fails policy: DISALLOWED/has_compat
+            is not ASCII
+            is not NFKC normal form; normalizes to:
+              xn
+            where:
+              \u207f is SUPERSCRIPT LATIN SMALL LETTER N
+          data.src:3:7: WARNING: name token
+              \ufb01nalize
+            fails policy: DISALLOWED/has_compat
+            is not ASCII
+            looks like ASCII:
+              finalize
+            is not NFKC normal form; normalizes to:
+              finalize
+            where:
+              \ufb01 is LATIN SMALL LIGATURE FI
+          data.src:4:16: WARNING: string token
+              '\ufb01nalize'
+            is not ASCII
+            looks like ASCII:
+              'finalize'
+            is not NFKC normal form; normalizes to:
+              'finalize'
+            where:
+              \ufb01 is LATIN SMALL LIGATURE FI
+          data.src:5:7: WARNING: name token
+              \ufb01nalization
+            fails policy: DISALLOWED/has_compat
+            is not ASCII
+            looks like ASCII:
+              finalization
+            is not NFKC normal form; normalizes to:
+              finalization
+            where:
+              \ufb01 is LATIN SMALL LIGATURE FI
+          data.src:6:24: WARNING: string token
+              "\ufb01nalization"
+            is not ASCII
+            looks like ASCII:
+              "finalization"
+            is not NFKC normal form; normalizes to:
+              "finalization"
+            where:
+              \ufb01 is LATIN SMALL LIGATURE FI

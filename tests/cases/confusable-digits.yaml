@@ -1,0 +1,19 @@
+source: |
+    int('৪୨')
+    '{٥}'.format('zero', 'one', 'two', 'three', 'four', 'five')
+expected_stdout: |
+          data.src:1:4: WARNING: string token
+              '\u09ea\u0b68'
+            is not ASCII
+            looks like ASCII:
+              '89'
+            where:
+              \u09ea is BENGALI DIGIT FOUR
+              \u0b68 is ORIYA DIGIT TWO
+          data.src:2:0: WARNING: string token
+              '{\u0665}'
+            is not ASCII
+            looks like ASCII:
+              '{o}'
+            where:
+              \u0665 is ARABIC-INDIC DIGIT FIVE

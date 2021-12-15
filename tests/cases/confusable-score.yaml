@@ -1,0 +1,31 @@
+source: |
+    scope = 0
+    scоpe = 1  # Cyrillic o
+    scοpe = 2  # Greek o
+    ѕсоре = 3  # all Cyrillic
+expected_stdout: |
+          data.src:2:0: WARNING: name token
+              sc\u043epe
+            is not ASCII
+            looks like ASCII:
+              scope
+            where:
+              \u043e is CYRILLIC SMALL LETTER O
+          data.src:3:0: WARNING: name token
+              sc\u03bfpe
+            is not ASCII
+            looks like ASCII:
+              scope
+            where:
+              \u03bf is GREEK SMALL LETTER OMICRON
+          data.src:4:0: WARNING: name token
+              \u0455\u0441\u043e\u0440\u0435
+            is not ASCII
+            looks like ASCII:
+              scope
+            where:
+              \u0435 is CYRILLIC SMALL LETTER IE
+              \u043e is CYRILLIC SMALL LETTER O
+              \u0440 is CYRILLIC SMALL LETTER ER
+              \u0441 is CYRILLIC SMALL LETTER ES
+              \u0455 is CYRILLIC SMALL LETTER DZE

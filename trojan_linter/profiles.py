@@ -33,15 +33,21 @@ def python_string_profile(token):
     else:
         profile = _opaque_precis_profile
     try:
-        return profile.enforce(token.py_content)
+        result = []
+        for line in token.py_content.splitlines():
+            if line:
+                result.append(profile.enforce(token.py_content))
+            else:
+                result.append(line)
+        return ''.join(result)
     except UnicodeEncodeError as e:
         raise ValueError(e.reason)
 
 class TestingProfile(Profile):
-    tokenize = tokenize_python.tokenize
-    def read_file(self, filename):
-        with py_tokenize.open(filename) as file:
-            return file.read()
+    tokenize = staticmethod(tokenize_python.tokenize)
+
+    def open_file(self, filename):
+        return py_tokenize.open(filename)
 
     token_profiles = {
         'name': str,
@@ -53,10 +59,10 @@ class TestingProfile(Profile):
     }
 
 class PythonProfile(Profile):
-    tokenize = tokenize_python.tokenize
-    def read_file(self, filename):
-        with py_tokenize.open(filename) as file:
-            return file.read()
+    tokenize = staticmethod(tokenize_python.tokenize)
+
+    def open_file(self, filename):
+        return py_tokenize.open(filename)
 
     token_profiles = {
         'name': username_token_profile,

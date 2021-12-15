@@ -1,0 +1,5 @@
+source: |
+    print("hello world")
+    # nothing suspicious here
+expected_stdout: |
+expected_exit_code: 0

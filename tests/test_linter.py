@@ -9,7 +9,6 @@ from hypothesis.strategies import sampled_from
 
 from trojan_linter.linter import lint_text, ALLOWED_CONTROL_CHARS
 from trojan_linter.nits import safe_char_repr, safe_char_reprs
-from trojan_linter.tokenize_python import tokenize
 from trojan_linter.profiles import PythonProfile, TestingProfile
 
 
@@ -21,7 +20,7 @@ clean_ascii_text = text(one_of(
 
 @given(clean_ascii_text)
 def test_clean_ascii(text):
-    assert list(lint_text('test', text, tokenize, TestingProfile.token_profiles)) == []
+    assert list(lint_text('test', text, TestingProfile)) == []
 
 
 @given(
@@ -41,7 +40,7 @@ def test_control_chars(text, pos, control):
     pos %= len(text) + 1
     text = text[:pos] + control + text[pos:]
     try:
-        bad_parts = list(lint_text('test', text, tokenize, TestingProfile.token_profiles))
+        bad_parts = list(lint_text('test', text, TestingProfile()))
     except SyntaxError:
         with pytest.raises((SyntaxError, ValueError)):
             compile(text, 'test', 'exec')
@@ -68,7 +67,7 @@ def test_control_chars(text, pos, control):
     )),
 )
 def test_all_control_chars(text):
-    bad_parts = list(lint_text('test', text, tokenize, TestingProfile.token_profiles))
+    bad_parts = list(lint_text('test', text, TestingProfile()))
     found_controls = []
     for bp in bad_parts:
         for nit in bp.nits_by_name('ControlCharacter'):
@@ -88,7 +87,7 @@ def test_surrogates(text, pos, control):
     pos %= len(text) + 1
     text = text[:pos] + control + text[pos:]
     with pytest.raises(UnicodeError):
-        list(lint_text('test', text, tokenize, TestingProfile.token_profiles))
+        list(lint_text('test', text, TestingProfile()))
 
 
 CASES = {
@@ -599,7 +598,7 @@ CASES = {
 @pytest.mark.parametrize('source', CASES)
 def test_cases(source):
     expected = CASES[source]
-    bad_parts = list(lint_text('test', source, tokenize, PythonProfile.token_profiles))
+    bad_parts = list(lint_text('test', source, PythonProfile()))
     assert_result_matches(bad_parts, expected)
 
 def assert_result_matches(got, expected, path=''):
@@ -617,15 +616,23 @@ def assert_result_matches(got, expected, path=''):
 
 @given(characters(blacklist_characters="'\\"))
 def test_safe_char_repr(char):
-    result = safe_char_repr(char)
+    chars_to_explain = {}
+    result = safe_char_repr(char, chars_to_explain)
     assert literal_eval("'" + result + "'") == char
     assert re.fullmatch(r'[ -~]+', result)
+    if result == char:
+        assert chars_to_explain == {}
+    else:
+        assert chars_to_explain == {char: result}
 
 
 @given(text(characters(blacklist_characters='\\"')))
-def test_safe_char_reprs(char):
-    result = "".join(safe_char_reprs(char))
-    assert literal_eval('"' + result + '"') == char
+def test_safe_char_reprs(text):
+    chars_to_explain = {}
+    result = "".join(safe_char_reprs(text, chars_to_explain))
+    assert literal_eval('"' + result + '"') == text
     assert re.fullmatch(r'[ -~]*', result)
     assert not result.startswith(' ')
     assert not result.endswith(' ')
+    if result == text:
+        assert chars_to_explain == {}

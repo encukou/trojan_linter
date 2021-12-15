@@ -27,13 +27,14 @@ else:
 class LineMap:
     """Maps text indices to (line, column) pairs and vice versa"""
 
-    def __init__(self, source):
+    def __init__(self, filename, source):
         self.line_starts = []
         current_pos = 0
         for line in io.StringIO(source):
             self.line_starts.append(current_pos)
             current_pos += len(line)
         self.line_starts.append(current_pos)
+        self.filename = filename
 
     def index_to_row_col(self, index):
         lineno = bisect_right(self.line_starts, index)
@@ -45,12 +46,24 @@ class LineMap:
         return line_start + col
 
 
-def lint_text(name, text, tokenizer, token_profiles):
+def lint_path(filename, profile):
+    with profile.open_file(filename) as file:
+        text = file.read()
+        if file.encoding not in ('ascii', 'utf-8'):
+            code_part = nits.File(filename, text)
+            code_part.nits.append(nits.UnusualEncoding(code_part, file.encoding))
+            yield code_part
+        yield from lint_text(filename, text, profile)
+
+
+def lint_text(name, text, profile):
+    tokenizer = profile.tokenize
+    token_profiles = profile.token_profiles
     linemap = None
     def _get_linemap():
         nonlocal linemap
         if linemap is None:
-            linemap = LineMap(text)
+            linemap = LineMap(name, text)
         return linemap
 
     if text.isascii() and not ASCII_CONTROL_RE.search(text):

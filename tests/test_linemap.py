@@ -10,7 +10,7 @@ from trojan_linter.linter import LineMap
 def test_properties(source, index):
     index %= len(source)
     char = source[index]
-    linemap = LineMap(source)
+    linemap = LineMap('<test>', source)
     row, col = linemap.index_to_row_col(index)
     print(index, row, col, repr(source), linemap.line_starts)
 
@@ -24,7 +24,7 @@ def test_properties(source, index):
 @given(text(characters()))
 def test_past_end(source):
     index = len(source)
-    linemap = LineMap(source)
+    linemap = LineMap('<test>', source)
     row, col = linemap.index_to_row_col(index)
     print(index, row, col, repr(source), linemap.line_starts)
 

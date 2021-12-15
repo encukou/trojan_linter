@@ -9,7 +9,7 @@ from trojan_linter.tokenize_python import tokenize
 @given(text())
 @example("coding: ascii")
 def test_coverage(text):
-    linemap = LineMap(text)
+    linemap = LineMap('<test>', text)
     last_pos = 1, 0
     last_index = 0
     strings = []

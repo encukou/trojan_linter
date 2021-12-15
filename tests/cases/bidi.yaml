@@ -1,0 +1,142 @@
+source: |
+    s = "X" * 100 #    "X" is assigned
+    s = "א" * 100 #    "א" is assigned
+    ערך = 23
+    قيمة = ערך
+    قيمة - (ערך ** 2)
+    s = "x‏" * 100 #    "‏x" is assigned
+
+expected_stdout: |
+          data.src:2:4: WARNING: string token
+              "\u05d0"
+            is not ASCII
+            is reordered; it appears as:
+              "\u05d0"    # 100 * "\u05d0
+              ^                   ^^^^^^^
+              (^ marks this text)
+            where:
+              \u05d0 is HEBREW LETTER ALEF
+          data.src:2: WARNING: line 2
+              s = "\u05d0" * 100 #    "\u05d0" is assigned
+            is reordered; it appears as:
+              s = "\u05d0"    # 100 * "\u05d0" is assigned\x0a
+            where:
+              \u05d0 is HEBREW LETTER ALEF
+          data.src:2:14: WARNING: comment token
+              #    "\u05d0" is assigned
+            is not ASCII
+            is reordered; it appears as:
+              \u05d0"    # 100 * "\u05d0" is assigned
+              ^^^^^^^^^^^^              ^^^^^^^^^^^^^
+              (^ marks this text)
+            where:
+              \u05d0 is HEBREW LETTER ALEF
+          data.src:3:0: WARNING: name token
+              \u05e2\u05e8\u05da
+            is not ASCII
+            is reordered; it appears as:
+              \u05da\u05e8\u05e2
+            where:
+              \u05da is HEBREW LETTER FINAL KAF
+              \u05e2 is HEBREW LETTER AYIN
+              \u05e8 is HEBREW LETTER RESH
+          data.src:3: WARNING: line 3
+              \u05e2\u05e8\u05da = 23
+            is reordered; it appears as:
+              \x0a23 = \u05da\u05e8\u05e2
+            where:
+              \u05da is HEBREW LETTER FINAL KAF
+              \u05e2 is HEBREW LETTER AYIN
+              \u05e8 is HEBREW LETTER RESH
+          data.src:4:0: WARNING: name token
+              \u0642\u064a\u0645\u0629
+            is not ASCII
+            is reordered; it appears as:
+              \u0629\u0645\u064a\u0642
+            where:
+              \u0629 is ARABIC LETTER TEH MARBUTA
+              \u0642 is ARABIC LETTER QAF
+              \u0645 is ARABIC LETTER MEEM
+              \u064a is ARABIC LETTER YEH
+          data.src:4: WARNING: line 4
+              \u0642\u064a\u0645\u0629 = \u05e2\u05e8\u05da
+            is reordered; it appears as:
+              \x0a\u05da\u05e8\u05e2 = \u0629\u0645\u064a\u0642
+            where:
+              \u05da is HEBREW LETTER FINAL KAF
+              \u05e2 is HEBREW LETTER AYIN
+              \u05e8 is HEBREW LETTER RESH
+              \u0629 is ARABIC LETTER TEH MARBUTA
+              \u0642 is ARABIC LETTER QAF
+              \u0645 is ARABIC LETTER MEEM
+              \u064a is ARABIC LETTER YEH
+          data.src:4:7: WARNING: name token
+              \u05e2\u05e8\u05da
+            is not ASCII
+            is reordered; it appears as:
+              \u05da\u05e8\u05e2
+            where:
+              \u05da is HEBREW LETTER FINAL KAF
+              \u05e2 is HEBREW LETTER AYIN
+              \u05e8 is HEBREW LETTER RESH
+          data.src:5:0: WARNING: name token
+              \u0642\u064a\u0645\u0629
+            is not ASCII
+            is reordered; it appears as:
+              \u0629\u0645\u064a\u0642
+            where:
+              \u0629 is ARABIC LETTER TEH MARBUTA
+              \u0642 is ARABIC LETTER QAF
+              \u0645 is ARABIC LETTER MEEM
+              \u064a is ARABIC LETTER YEH
+          data.src:5: WARNING: line 5
+              \u0642\u064a\u0645\u0629 - (\u05e2\u05e8\u05da ** 2)
+            is reordered; it appears as:
+              \x0a)2 ** \u05da\u05e8\u05e2( - \u0629\u0645\u064a\u0642
+            where:
+              \u05da is HEBREW LETTER FINAL KAF
+              \u05e2 is HEBREW LETTER AYIN
+              \u05e8 is HEBREW LETTER RESH
+              \u0629 is ARABIC LETTER TEH MARBUTA
+              \u0642 is ARABIC LETTER QAF
+              \u0645 is ARABIC LETTER MEEM
+              \u064a is ARABIC LETTER YEH
+          data.src:5:8: WARNING: name token
+              \u05e2\u05e8\u05da
+            is not ASCII
+            is reordered; it appears as:
+              \u05da\u05e8\u05e2
+            where:
+              \u05da is HEBREW LETTER FINAL KAF
+              \u05e2 is HEBREW LETTER AYIN
+              \u05e8 is HEBREW LETTER RESH
+          data.src:6:4: WARNING: string token
+              "x\u200f"
+            fails policy: DISALLOWED/precis_ignorable_properties
+            contains a control character
+              (possibly invisible and/or affecting nearby text)
+            is not ASCII
+            is reordered; it appears as:
+              "x\u200f"    # 100 * "\u200f
+              ^^                   ^^^^^^^
+              (^ marks this text)
+            where:
+              \u200f is RIGHT-TO-LEFT MARK
+          data.src:6: WARNING: line 6
+              s = "x\u200f" * 100 #    "\u200fx" is assigned
+            is reordered; it appears as:
+              s = "x\u200f"    # 100 * "\u200fx" is assigned\x0a
+            where:
+              \u200f is RIGHT-TO-LEFT MARK
+          data.src:6:15: WARNING: comment token
+              #    "\u200fx" is assigned
+            fails policy: DISALLOWED/precis_ignorable_properties
+            contains a control character
+              (possibly invisible and/or affecting nearby text)
+            is not ASCII
+            is reordered; it appears as:
+              \u200f"    # 100 * "\u200fx" is assigned
+              ^^^^^^^^^^^^              ^^^^^^^^^^^^^^
+              (^ marks this text)
+            where:
+              \u200f is RIGHT-TO-LEFT MARK

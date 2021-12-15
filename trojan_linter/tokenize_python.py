@@ -12,7 +12,8 @@ import regex
 from .nits import Token
 
 STRING_RE = regex.compile(
-    r'''(?P<flags>[^'"]*)(?P<delim>('|"){3}|'(?!')|"(?!"))(?P<content>.*)(?P=delim)'''
+    r'''(?P<flags>[^'"]*)(?P<delim>('|"){3}|'(?!')|"(?!"))(?P<content>.*)(?P=delim)''',
+    regex.DOTALL,
 )
 
 class StringToken(Token):

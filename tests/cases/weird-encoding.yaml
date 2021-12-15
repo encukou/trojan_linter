@@ -1,0 +1,18 @@
+source: |
+    # For writing Japanese, you don't need an editor that supports
+    # UTF-8 source encoding: unicode_escape sequences work just as well.
+
+    import os
+
+    message = '''
+    This runs `echo WHOA` in your shell:
+    \u0027\u0027\u0027\u002c\u0028\u006f\u0073\u002e
+    \u0073\u0079\u0073\u0074\u0065\u006d\u0028
+    \u0027\u0065\u0063\u0068\u006f\u0020\u0057\u0048\u004f\u0041\u0027
+    \u0029\u0029\u002c\u0027\u0027\u0027
+    '''
+expected_stdout: |
+          data.src: WARNING: this file
+            has an unusual encoding:
+              unicode_escape
+              (possibly hiding other issues in the source)

@@ -1,26 +1,36 @@
+import unicodedata
+
 try:
     from functools import cached_property
 except ImportError:
     cached_property = property
 
 
-def safe_char_repr(char, min_passthru=32):
+def safe_char_repr(char, chars_to_explain, min_passthru=32):
     codepoint = ord(char)
     if min_passthru <= codepoint < 127:
         return char
     if codepoint <= 0xff:
-        return f'\\x{codepoint:02x}'
-    if codepoint <= 0xffff:
-        return f'\\u{codepoint:04x}'
-    return f'\\U{codepoint:08x}'
+        char_repr = f'\\x{codepoint:02x}'
+    elif codepoint <= 0xffff:
+        char_repr = f'\\u{codepoint:04x}'
+    else:
+        char_repr = f'\\U{codepoint:08x}'
+    chars_to_explain[char] = char_repr
+    return char_repr
 
-def safe_char_reprs(string):
+def safe_char_reprs(string, chars_to_explain):
     if string.startswith(' ') or string.endswith(' '):
         min_passthru = 33
     else:
         min_passthru = 32
-    return [safe_char_repr(char, min_passthru) for char in string]
+    return [
+        safe_char_repr(char, chars_to_explain, min_passthru)
+        for char in string
+    ]
 
+def format_string(string, chars_to_explain):
+    return ''.join(safe_char_reprs(string, chars_to_explain))
 
 class CodePart:
     def __init__(self, source, linemap, start_index, end_index):
@@ -60,7 +70,25 @@ class CodePart:
 
     @cached_property
     def string_safe(self):
-        return ''.join(safe_char_reprs(self.string))
+        return ''.join(safe_char_reprs(self.string, {}))
+
+    def format(self):
+        chars_to_explain = {}
+        lines = list(self.format_header(chars_to_explain))
+        for nit in self.nits:
+            lines.extend(nit.format_lines(chars_to_explain))
+        if chars_to_explain:
+            lines.append('  where:')
+            for char, expanded in sorted(chars_to_explain.items()):
+                try:
+                    name = unicodedata.name(char)
+                except ValueError:
+                    name = 'unnnamed/unassigned'
+                lines.append(f'    {expanded} is {name}')
+        return '\n'.join(lines)
+
+    def format_header(self):
+        return f'{self.linemap.filename}: {self.name}'
 
 class Token(CodePart):
     def __init__(self, source, linemap, type, string, start_index, end_index):
@@ -71,6 +99,10 @@ class Token(CodePart):
     def __repr__(self):
         return f"<{self.name}({self.type})@{self.row}:{self.col}: {self._repr_nits()}>"
 
+    def format_header(self, chars_to_explain):
+        filename = self.linemap.filename
+        yield f'{filename}:{self.row}:{self.col}: WARNING: {self.type} token'
+        yield '    ' + format_string(self.string, chars_to_explain)
 
 class Line(CodePart):
     def __init__(self, source, linemap, lineno):
@@ -81,19 +113,32 @@ class Line(CodePart):
 
     @cached_property
     def string(self):
-        return self.source[self.start_index:self.end_index]
+        return self.source[self.start_index:self.end_index].rstrip('\n')
 
     def __repr__(self):
         return f"<{type(self).__name__} {self.row}: {self._repr_nits()}>"
 
+    def format_header(self, chars_to_explain):
+        filename = self.linemap.filename
+        yield f'{filename}:{self.row}: WARNING: line {self.row}'
+        yield '    ' + format_string(self.string, chars_to_explain)
+
 
 class File(CodePart):
-    def __init__(self, source, linemap):
-        super().__init__(source, linemap, 0, len(source))
+    def __init__(self, filename, source):
+        super().__init__(source, None, 0, len(source))
         self.string = source
+        self.filename = filename
+
+    start = 0, 0
+    end = 0, 0
 
     def __repr__(self):
         return f"<{type(self).__name__}: {self._repr_nits()}>"
+
+    def format_header(self, chars_to_explain):
+        filename = self.filename
+        yield f'{filename}: WARNING: this file'
 
 
 class Nit:
@@ -113,6 +158,10 @@ class ControlCharacter(Nit):
         i = self.code_part.start_index + offset
         self.control_char = self.code_part.source[i]
 
+    def format_lines(self, chars_to_explain):
+        yield '  contains a control character'
+        yield '    (possibly invisible and/or affecting nearby text)'
+
 class _Reordered(Nit):
     def __init__(self, code_part, reordered, reordered_char_in_token):
         super().__init__(code_part)
@@ -121,7 +170,7 @@ class _Reordered(Nit):
 
     @cached_property
     def _reordered_safe_char_reprs(self):
-        return safe_char_reprs(self.reordered)
+        return safe_char_reprs(self.reordered, {})
 
     @cached_property
     def reordered_safe(self):
@@ -137,6 +186,13 @@ class _Reordered(Nit):
             for isin, crepr in zip(self.reordered_char_in_token, reprs)
         )
 
+    def format_lines(self, chars_to_explain):
+        yield '  is reordered; it appears as:'
+        yield f'    {self.reordered_safe}'
+        if not all(self.reordered_char_in_token):
+            yield f'    {self.reordered_safe_underline}'
+            yield "    (^ marks this text)"
+
 
 class ReorderedToken(_Reordered):
     pass
@@ -148,10 +204,17 @@ class NonASCII(Nit):
     def __init__(self, code_part):
         super().__init__(code_part)
 
+    def format_lines(self, chars_to_explain):
+        yield '  is not ASCII'
+
 class ASCIILookalike(Nit):
     def __init__(self, code_part, lookalike):
         super().__init__(code_part)
         self.lookalike = lookalike
+
+    def format_lines(self, chars_to_explain):
+        yield '  looks like ASCII:'
+        yield f'    {self.lookalike}'
 
 class HasLookalike(Nit):
     def __init__(self, code_part, other_token):
@@ -165,46 +228,26 @@ class NonNFKC(Nit):
 
     @cached_property
     def normalized_safe(self):
-        return ''.join(safe_char_reprs(self.normalized))
+        return format_string(self.normalized, {})
+
+    def format_lines(self, chars_to_explain):
+        yield '  is not NFKC normal form; normalizes to:'
+        yield f'    {format_string(self.normalized, chars_to_explain)}'
 
 class PolicyFail(Nit):
     def __init__(self, code_part, reason):
         super().__init__(code_part)
         self.reason = reason
 
+    def format_lines(self, chars_to_explain):
+        yield f'  fails policy: {self.reason}'
+
 class UnusualEncoding(Nit):
     def __init__(self, code_part, encoding):
         super().__init__(code_part)
         self.encoding = encoding
 
-'''
-    @cached_property
-    def reordered_repr(self):
-        lines = [
-            'The token is:',
-            f'    {"".join(safe_char_reprs(self.string))}',
-            'but appears as:',
-        ]
-        reprs = safe_char_reprs(self.reordered)
-        lines.append(f'    {"".join(reprs)}')
-        if not all(self.reordered_char_in_token):
-            lines.append('    ' + ''.join(
-                ('^' if isin else ' ') * len(crepr)
-                for isin, crepr in zip(self.reordered_char_in_token, reprs)
-            ))
-            lines.append("    (characters without ^ below aren't part of the token)")
-        legend = []
-        seen = set()
-        for char, crepr in zip(self.reordered, reprs):
-            try:
-                name = unicodedata.name(char)
-            except ValueError:
-                continue
-            if crepr != char and char not in seen:
-                legend.append(f'    {crepr} is {name}')
-                seen.add(char)
-        if legend:
-            lines.append('where:')
-            lines.extend(legend)
-        return '\n'.join(lines)
-'''
+    def format_lines(self, chars_to_explain):
+        yield '  has an unusual encoding:'
+        yield f'    {self.encoding}'
+        yield '    (possibly hiding other issues in the source)'
